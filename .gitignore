@@ -1,0 +1,3 @@
+libs/SFML/*
+libs/glew/*
+src/vendor/glm/*

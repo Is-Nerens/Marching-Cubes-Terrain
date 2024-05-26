@@ -1,0 +1,236 @@
+#version 460 core
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+// Uniforms
+uniform float densityThreshold;
+uniform int width;
+uniform int height;
+uniform int offset;
+
+
+layout(binding = 0) readonly buffer VolumeDataBuffer {
+    float VolumeData[];
+};
+layout(binding = 1) buffer VertexMapBuffer {
+    int VertexMap[];
+};
+layout(binding = 2) buffer VertexMapKeysBuffer {
+    float VertexMapKeys[];
+};
+layout(binding = 3) writeonly buffer VertexBuffer {
+    float vertices[];
+};
+layout(binding = 4) writeonly buffer IndexBuffer {
+    int indices[];
+};
+layout(binding = 5) buffer CountBuffer {
+    int counts[];
+};
+layout(binding = 6) readonly buffer TriTableBuffer {
+    int TriTable[];
+};
+layout(binding = 7) uniform atomic_uint atomicFlag;
+
+
+
+
+// cornerIndexAFromEdge array
+const int cornerIndexAFromEdge[12] = int[](0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3);
+
+// cornerIndexBFromEdge array
+const int cornerIndexBFromEdge[12] = int[](1, 2, 3, 0, 5, 6, 7, 4, 4, 5, 6, 7);
+
+int maxProbeDistance = 0;
+
+struct Corner {
+    vec3 position;
+    float density;
+};
+
+vec3 VertexInterp(Corner c1, Corner c2)
+{
+    float t = (densityThreshold- c1.density) / (c2.density - c1.density);
+    vec3 v;
+    v.x = c1.position.x + t * (c2.position.x - c1.position.x);
+    v.y = c1.position.y + t * (c2.position.y - c1.position.y);
+    v.z = c1.position.z + t * (c2.position.z - c1.position.z);
+    return v;
+}
+
+vec3 CalculateNormal(vec3 v1, vec3 v2, vec3 v3)
+{
+    vec3 vect1 = v2 - v1;
+    vec3 vect2 = v3 - v1;
+    
+    // Handle degenerate case, return a default normal or NaN
+    if (length(vect1) < 0.00001 || length(vect2) < 0.00001) {
+        return vec3(0.0, 0.0, 0.0); // Or return NaN or some default normal
+    }
+    
+    vec3 unnormalized = cross(vect1, vect2);
+    return normalize(unnormalized);
+}
+
+float GetDensity(float xF, float yF, float zF)
+{
+    int x = int(floor(xF + 0.5));
+    int y = int(floor(yF + 0.5));
+    int z = int(floor(zF + 0.5));
+    int index = z + (width+1) * (y + (height+1) * x);
+    return VolumeData[index];
+}
+
+int HashIndex(vec3 v)
+{
+    int x = int(floor(v.x + 0.5));
+    int y = int(floor(v.y + 0.5));
+    int z = int(floor(v.z + 0.5));
+    return z + (width+1) * (y + (height+1) * x);
+}
+
+int VertexMapGet(vec3 v)
+{
+    return VertexMap[HashIndex(v)];
+}
+
+void VertexMapSet(vec3 v, int value)
+{
+    VertexMap[HashIndex(v)] = value;
+}
+
+int TriTableGet(int cubeIndex, int i)
+{
+    int index = cubeIndex * 16 + i;
+    return TriTable[index];
+}
+
+void AppendVertexToBuffer(vec3 v, vec3 normal)
+{
+    int index = counts[0] * 6;
+    vertices[index] = v.x - offset;
+    vertices[index + 1] = v.y;
+    vertices[index + 2] = v.z - offset;
+    vertices[index + 3] = normal.x;
+    vertices[index + 4] = normal.y;
+    vertices[index + 5] = normal.z;
+    counts[0] += 1;
+}
+
+void AppendIndexToBuffer(int value)
+{
+    indices[counts[1]] = value;
+    counts[1] += 1;
+}
+
+
+void AddFace(vec3 v1, vec3 v2, vec3 v3, vec3 normal)
+{
+    int v1Index = VertexMapGet(v1);
+    if (v1Index != -1) AppendIndexToBuffer(v1Index);
+    else
+    {
+        VertexMapSet(v1, counts[0]);
+        AppendIndexToBuffer(counts[0]);
+        AppendVertexToBuffer(v1, normal);
+    }
+
+    int v2Index = VertexMapGet(v2);
+    if (v2Index != -1) AppendIndexToBuffer(v2Index);
+    else
+    {
+        VertexMapSet(v2, counts[0]);
+        AppendIndexToBuffer(counts[0]);
+        AppendVertexToBuffer(v2, normal);
+    }
+
+    int v3Index = VertexMapGet(v3);
+    if (v3Index != -1) AppendIndexToBuffer(v3Index);
+    else
+    {
+        VertexMapSet(v3, counts[0]);
+        AppendIndexToBuffer(counts[0]);
+        AppendVertexToBuffer(v3, normal);
+    }
+}
+
+
+
+void main()
+{
+
+    // Calculate position of the cube for this worker
+    float x = gl_GlobalInvocationID.x;
+    float y = gl_GlobalInvocationID.y;
+    float z = gl_GlobalInvocationID.z;
+
+    int threadID = int(gl_GlobalInvocationID.x) +
+               int(gl_GlobalInvocationID.y) * int(gl_NumWorkGroups.x) * int(gl_WorkGroupSize.x) +
+               int(gl_GlobalInvocationID.z) * int(gl_NumWorkGroups.x) * int(gl_NumWorkGroups.y) * int(gl_WorkGroupSize.x) * int(gl_WorkGroupSize.y);
+
+
+
+    // create 8 corners
+    Corner corners[8];
+    corners[0].position = vec3(x - 0.5, y - 0.5, z + 0.5);
+    corners[1].position = vec3(x + 0.5, y - 0.5, z + 0.5);
+    corners[2].position = vec3(x + 0.5, y - 0.5, z - 0.5);
+    corners[3].position = vec3(x - 0.5, y - 0.5, z - 0.5);
+    corners[4].position = vec3(x - 0.5, y + 0.5, z + 0.5);
+    corners[5].position = vec3(x + 0.5, y + 0.5, z + 0.5);
+    corners[6].position = vec3(x + 0.5, y + 0.5, z - 0.5);
+    corners[7].position = vec3(x - 0.5, y + 0.5, z - 0.5);
+
+    // calculate the cube index
+    int cubeIndex = 0;
+    for (int i = 0; i < 8; ++i) {
+        corners[i].density = GetDensity(corners[i].position.x, corners[i].position.y, corners[i].position.z);
+        if (corners[i].density > densityThreshold) cubeIndex |= (1 << i);
+    }
+
+
+    vec3 cubeVertices[16];
+    vec3 cubeNormals[4];
+
+    // Fill cubeVertices and cubeNormals arrays
+    int i = 0;
+    while(TriTableGet(cubeIndex, i) != -1)
+    {    
+        int a0 = cornerIndexAFromEdge[TriTableGet(cubeIndex, i)];
+        int b0 = cornerIndexBFromEdge[TriTableGet(cubeIndex, i)];
+        int a1 = cornerIndexAFromEdge[TriTableGet(cubeIndex, i+1)];
+        int b1 = cornerIndexBFromEdge[TriTableGet(cubeIndex, i+1)];
+        int a2 = cornerIndexAFromEdge[TriTableGet(cubeIndex, i+2)];
+        int b2 = cornerIndexBFromEdge[TriTableGet(cubeIndex, i+2)];
+        
+        vec3 v1 = VertexInterp(corners[a0], corners[b0]);
+        vec3 v2 = VertexInterp(corners[a1], corners[b1]);
+        vec3 v3 = VertexInterp(corners[a2], corners[b2]);
+        vec3 normal = CalculateNormal(v1, v2, v3);
+
+        cubeVertices[i] = v1;
+        cubeVertices[i + 1] = v2;
+        cubeVertices[i + 2] = v3;
+        cubeNormals[i/3] = normal;
+        i += 3;
+    }
+
+
+    // Wait for this thread's turn
+    while (int(atomicCounter(atomicFlag)) != threadID) {}
+
+    
+    // Add vertices to the buffer
+    for (int j = 0; j < i; j += 3)
+    {
+        vec3 v1 = cubeVertices[j];
+        vec3 v2 = cubeVertices[j + 1];
+        vec3 v3 = cubeVertices[j + 2];
+        vec3 normal = cubeNormals[j/3];
+        AddFace(v1, v2, v3, normal);
+    }
+
+    // increment the flag
+    atomicCounterIncrement(atomicFlag);
+}
+
