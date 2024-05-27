@@ -56,7 +56,7 @@ public:
 		InitNoiseGenerator();
 	}
 
-	Model ConstructMeshGPU()
+	Model ConstructMeshGPU(int x, int y, int z)
 	{
         auto start = std::chrono::high_resolution_clock::now();
 
@@ -73,7 +73,9 @@ public:
         int locc = BindUniformFloat1(computeShaderProgram, "densityThreshold", densityThreshold);
         BindUniformInt1(computeShaderProgram, "width", width);
         BindUniformInt1(computeShaderProgram, "height", height);
-        BindUniformInt1(computeShaderProgram, "offset", offset);
+        BindUniformInt1(computeShaderProgram, "offsetX", x);
+        BindUniformInt1(computeShaderProgram, "offsetY", y);
+        BindUniformInt1(computeShaderProgram, "offsetZ", z);
         PrintGLErrors();
 
         GLuint vbo1, vbo2, vbo3; 

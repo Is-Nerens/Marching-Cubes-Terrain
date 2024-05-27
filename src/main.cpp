@@ -99,7 +99,7 @@ int main()
 
     TerrainGPU terrainGPU;
     std::vector<Model> models;
-    Model model = terrainGPU.ConstructMeshGPU();
+    Model model = terrainGPU.ConstructMeshGPU(0, 0, 0);
     models.push_back(model);
 
 
@@ -169,7 +169,7 @@ int main()
                 terrainGPU.AddDensity(hit.position, -0.02f);
 
                 // REGENERATE MODEL
-                model = terrainGPU.ConstructMeshGPU();
+                model = terrainGPU.ConstructMeshGPU(10, 0, 0);
                 models.clear();
                 models.push_back(model);
             }
@@ -186,7 +186,7 @@ int main()
                 terrainGPU.AddDensity(hit.position, 0.02f);
 
                 // REGENERATE MODEL
-                model = terrainGPU.ConstructMeshGPU();
+                model = terrainGPU.ConstructMeshGPU(10, 0, 0);
                 models.clear();
                 models.push_back(model);
             }

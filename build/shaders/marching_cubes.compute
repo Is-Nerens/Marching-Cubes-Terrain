@@ -6,7 +6,9 @@ layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 uniform float densityThreshold;
 uniform int width;
 uniform int height;
-uniform int offset;
+uniform int offsetX;
+uniform int offsetY;
+uniform int offsetZ;
 
 layout(binding = 0) readonly buffer VolumeDataBuffer {
     float VolumeData[];
@@ -74,19 +76,19 @@ int TriTableGet(int cubeIndex, int i)
 void AddFace(vec3 v1, vec3 v2, vec3 v3, vec3 normal, int index)
 {
     // vertex 1
-    vertices[index] = v1.x - offset;
-    vertices[index + 1] = v1.y;
-    vertices[index + 2] = v1.z - offset;
+    vertices[index] = v1.x + offsetX;
+    vertices[index + 1] = v1.y + offsetY;
+    vertices[index + 2] = v1.z + offsetZ;
 
     // vertex 2
-    vertices[index + 3] = v2.x - offset;
-    vertices[index + 4] = v2.y;
-    vertices[index + 5] = v2.z - offset;
+    vertices[index + 3] = v2.x + offsetX;
+    vertices[index + 4] = v2.y + offsetY;
+    vertices[index + 5] = v2.z + offsetZ;
 
     // vertex 3
-    vertices[index + 6] = v3.x - offset;
-    vertices[index + 7] = v3.y;
-    vertices[index + 8] = v3.z - offset;
+    vertices[index + 6] = v3.x + offsetX;
+    vertices[index + 7] = v3.y + offsetY;
+    vertices[index + 8] = v3.z + offsetZ;
 
     // normal
     vertices[index + 9] = normal.x;
