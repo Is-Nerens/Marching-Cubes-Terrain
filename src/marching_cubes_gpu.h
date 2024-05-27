@@ -34,95 +34,6 @@ namespace std {
 }
 
 
-class Terrain{
-public:
-
-    struct Chunk {
-		int x;
-		int y;
-		int z;
-	};
-
-
-    void UpdateTerrain (int renderDistance, float playerX, float playerY, float playerZ)
-    {
-        // CHUNK COORDINATES THAT BOUND THE PLAYER
-        int CenterChunkX = static_cast<int>(std::floor(playerX / width) * width);
-        int CenterChunkY = static_cast<int>(std::floor(playerY / height) * height);
-	    int CenterChunkZ = static_cast<int>(std::floor(playerZ / width) * width);
-	    int offsetH = (renderDistance - 1) * width / 2;
-	    int offsetV = (renderDistance - 1) * height / 2;
-
-
-        // GENERATE 1 CHUNK PER FRAME
-		bool generatedChunkThisFrame = false;
-
-		// Chunk index marked for removal
-		int markedChunkIndex = -1;
-
-        for (int y = 0; y < renderDistance; ++y) {
-            for (int x = 0; x < renderDistance; ++x) {
-                for (int z = 0; z < renderDistance; ++z) {
-                    int worldX = x * width - offsetH + CenterChunkX;
-                    int worldY = y * height - offsetV + CenterChunkY;
-                    int worldZ = z * width - offsetH + CenterChunkZ;
-
-                    // Stop if chunk was generated this frame
-                    if (generatedChunkThisFrame) break;
-
-                    bool chunkPresent = false;
-
-                    // Check if there is a chunk at the position
-                    for (int i = 0; i < chunks.size(); ++i) {
-
-                        // 1 - check if chunk exists at current iteration position
-                        //if (chunks[i].x == worldX && chunks[i].y == worldY && chunks[i].z == worldZ) {
-                        if (chunks[i].x == worldX && chunks[i].z == worldZ) {
-                            chunkPresent = true;
-                            break;
-                        }
-
-
-                        // 2 - mark chunks for removal
-                       // int chunkDist = std::max(std::max(std::abs(chunks[i].x - CenterChunkX), std::abs(chunks[i].z - CenterChunkZ)), std::abs(chunks[i].y - CenterChunkY));
-                        int chunkDist = std::max(std::abs(chunks[i].x - CenterChunkX), std::abs(chunks[i].z - CenterChunkZ));
-                        if (chunkDist > std::floor((renderDistance * width) / 2.0)){
-                            markedChunkIndex = i;
-                        } 
-                    }
-
-
-                    // No chunk present? Create a new one
-                    if (!chunkPresent){
-                        GenerateChunk(worldX, 0, worldZ);
-                        Chunk newChunk;
-                        newChunk.x = worldX;
-                        newChunk.y = 0;
-                        newChunk.z = worldZ;
-                        chunks.push_back(newChunk);
-                        generatedChunkThisFrame = true;
-                    }
-                }
-            }
-        }
-
-		// Remove 1 Chunk per frame
-		if (markedChunkIndex != -1){
-			chunks.erase(chunks.begin() + markedChunkIndex);
-			models.erase(models.begin() + markedChunkIndex);
-		}
-    }
-
-
-    std::vector<Model> models;
-
-private:
-	int width = 32;
-	int height = 32;
-    std::vector<Chunk> chunks;
-};
-
-
 
 class TerrainGPU{
 public:
@@ -154,10 +65,15 @@ public:
 
         VertexHashMap.clear();
 
+		std::cout << "here" << std::endl;
+
         // shader uniforms
         int locc = BindUniformFloat1(computeShaderProgram, "densityThreshold", densityThreshold);
         BindUniformInt1(computeShaderProgram, "width", width);
         BindUniformInt1(computeShaderProgram, "height", height);
+        BindUniformInt1(computeShaderProgram, "offsetX", offsetX);
+        BindUniformInt1(computeShaderProgram, "offsetY", offsetY);
+        BindUniformInt1(computeShaderProgram, "offsetZ", offsetZ);
         PrintGLErrors();
 
         GLuint vbo1, vbo2, vbo3; 
@@ -214,6 +130,8 @@ public:
         glDeleteBuffers(1, &vbo3);
 
 		auto start = std::chrono::high_resolution_clock::now();
+
+		std::cout << "there" << std::endl;
 
 
         // set model vertices and indices
@@ -409,4 +327,99 @@ private:
         return data;
     }
 };
+
+
+
+
+
+// class Terrain{
+// public:
+
+//     struct Chunk {
+// 		int x;
+// 		int y;
+// 		int z;
+// 	};
+
+
+//     void UpdateTerrain (int renderDistance, float playerX, float playerY, float playerZ)
+//     {
+//         // CHUNK COORDINATES THAT BOUND THE PLAYER
+//         int CenterChunkX = static_cast<int>(std::floor(playerX / width) * width);
+//         int CenterChunkY = static_cast<int>(std::floor(playerY / height) * height);
+// 	    int CenterChunkZ = static_cast<int>(std::floor(playerZ / width) * width);
+// 	    int offsetH = (renderDistance - 1) * width / 2;
+// 	    int offsetV = (renderDistance - 1) * height / 2;
+
+
+//         // GENERATE 1 CHUNK PER FRAME
+// 		bool generatedChunkThisFrame = false;
+
+// 		// Chunk index marked for removal
+// 		int markedChunkIndex = -1;
+
+//         for (int y = 0; y < renderDistance; ++y) {
+//             for (int x = 0; x < renderDistance; ++x) {
+//                 for (int z = 0; z < renderDistance; ++z) {
+//                     int worldX = x * width - offsetH + CenterChunkX;
+//                     int worldY = y * height - offsetV + CenterChunkY;
+//                     int worldZ = z * width - offsetH + CenterChunkZ;
+
+//                     // Stop if chunk was generated this frame
+//                     if (generatedChunkThisFrame) break;
+
+//                     bool chunkPresent = false;
+
+//                     // Check if there is a chunk at the position
+//                     for (int i = 0; i < chunks.size(); ++i) {
+
+//                         // 1 - check if chunk exists at current iteration position
+//                         //if (chunks[i].x == worldX && chunks[i].y == worldY && chunks[i].z == worldZ) {
+//                         if (chunks[i].x == worldX && chunks[i].z == worldZ) {
+//                             chunkPresent = true;
+//                             break;
+//                         }
+
+
+//                         // 2 - mark chunks for removal
+//                        // int chunkDist = std::max(std::max(std::abs(chunks[i].x - CenterChunkX), std::abs(chunks[i].z - CenterChunkZ)), std::abs(chunks[i].y - CenterChunkY));
+//                         int chunkDist = std::max(std::abs(chunks[i].x - CenterChunkX), std::abs(chunks[i].z - CenterChunkZ));
+//                         if (chunkDist > std::floor((renderDistance * width) / 2.0)){
+//                             markedChunkIndex = i;
+//                         } 
+//                     }
+
+
+//                     // No chunk present? Create a new one
+//                     if (!chunkPresent){
+// 						TerrainGPU newTerrain(worldX, 0, worldZ);
+// 						Model newModel = newTerrain.ConstructMeshGPU();
+//                         Chunk newChunk;
+//                         newChunk.x = worldX;
+//                         newChunk.y = 0;
+//                         newChunk.z = worldZ;
+//                         chunks.push_back(newChunk);
+//                         generatedChunkThisFrame = true;
+//                     }
+//                 }
+//             }
+//         }
+
+// 		// Remove 1 Chunk per frame
+// 		if (markedChunkIndex != -1){
+// 			chunks.erase(chunks.begin() + markedChunkIndex);
+// 			models.erase(models.begin() + markedChunkIndex);
+// 		}
+//     }
+
+
+//     std::vector<Model> models;
+
+// private:
+// 	int width = 32;
+// 	int height = 32;
+//     std::vector<Chunk> chunks;
+// };
+
+
 #endif
