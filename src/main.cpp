@@ -157,39 +157,14 @@ int main()
 
 
 
-        // test terrain raycast
-        if (Input.MouseDown())
-        {
-            RayHit hit = terrainGPU.Raycast(camera.position, camera.Forward());
-            if (hit.hit) 
-            {
-                std::cout << "Fired ray, hit position: " << hit.position.x << " " <<  hit.position.y << " " << hit.position.z << std::endl;
-                glm::vec3 p = hit.position - camera.Forward() * 0.5f;
 
-                terrainGPU.AddDensity(hit.position, -0.02f);
-
-                // REGENERATE MODEL
-                model = terrainGPU.ConstructMeshGPU();
-                models.clear();
-                models.push_back(model);
-            }
-        }
 
         if (Input.GetKey(KeyCode::Space))
         {
-            RayHit hit = terrainGPU.Raycast(camera.position, camera.Forward());
-            if (hit.hit) 
-            {
-                std::cout << "Fired ray, hit position: " << hit.position.x << " " <<  hit.position.y << " " << hit.position.z << std::endl;
-                glm::vec3 p = hit.position - camera.Forward() * 0.5f;
-
-                terrainGPU.AddDensity(hit.position, 0.02f);
-
-                // REGENERATE MODEL
-                model = terrainGPU.ConstructMeshGPU();
-                models.clear();
-                models.push_back(model);
-            }
+            // REGENERATE MODEL
+            model = terrainGPU.ConstructMeshGPU();
+            models.clear();
+            models.push_back(model);
         }
 
 

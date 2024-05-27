@@ -17,13 +17,7 @@
 #include <tuple>
 #include <chrono>
 
-struct RayHit
-{
-	glm::vec3 position = glm::vec3{0.0};
-	glm::vec3 normal = glm::vec3{0.0};
-	float distance = 0.0f;
-	bool hit = false;
-};
+
 
 // Custom hash function for tuple<float, float, float>
 namespace std {
@@ -58,7 +52,6 @@ public:
 
 	Model ConstructMeshGPU()
 	{
-        auto start = std::chrono::high_resolution_clock::now();
 
         glUseProgram(computeShaderProgram);
 
@@ -128,6 +121,8 @@ public:
         glDeleteBuffers(1, &vbo1);
         glDeleteBuffers(1, &vbo2);
         glDeleteBuffers(1, &vbo3);
+
+		auto start = std::chrono::high_resolution_clock::now();
 
 
         // set model vertices and indices
@@ -211,185 +206,6 @@ public:
         else if (VolumeData[index] > 1.0f) VolumeData[index] = 1.0f;
 	}
 
-	RayHit Raycast(glm::vec3 start, glm::vec3 dir) 
-	{
-		RayHit hit;
-		float maxDist = 20.0f;
-		float traveled = 0.0f;
-		float densityThreshold = 0.6f;
-		dir = glm::normalize(dir);
-
-		// ensure not zero
-		start.x += 0.0000001f;
-		start.y += 0.0000001f;
-		start.z += 0.0000001f;
-
-		// Calculate scaling factors for each axis
-		float s1 = std::numeric_limits<float>::infinity();
-		if (dir.x != 0){
-			s1 = std::sqrt(   std::pow(std::sqrt(1 + std::pow(dir.y / dir.x, 2)), 2)   +   std::pow(std::sqrt(1 + std::pow(dir.z / dir.x, 2)), 2));  
-		}
-		float s2 = std::numeric_limits<float>::infinity();
-		if (dir.z != 0){
-			s2 = std::sqrt(   std::pow(std::sqrt(1 + std::pow(dir.x / dir.y, 2)), 2)   +   std::pow(std::sqrt(1 + std::pow(dir.z / dir.y, 2)), 2));  
-		}
-		float s3 = std::numeric_limits<float>::infinity();
-		if (dir.z != 0){
-			s3 = std::sqrt(   std::pow(std::sqrt(1 + std::pow(dir.y / dir.z, 2)), 2)   +   std::pow(std::sqrt(1 + std::pow(dir.x / dir.z, 2)), 2));  
-		}
-		glm::vec3 stepScaling = glm::vec3(s1, s2, s3);
-		glm::vec3 mapCheck = SnapToCube(start.x, start.y, start.z);
-		glm::vec3 rayLength1D;
-		glm::vec3 step;
-
-
-		if (dir.x < 0) {
-			step.x = -1;
-			rayLength1D.x = (start.x - mapCheck.x) * stepScaling.x; 
-		}
-		else {
-			step.x = 1;
-			rayLength1D.x = (mapCheck.x - start.x + 1) * stepScaling.x; 
-		}
-
-		if (dir.y < 0) {
-			step.y = -1;
-			rayLength1D.y = (start.y - mapCheck.y) * stepScaling.y; 
-		}
-		else {
-			step.y = 1;
-			rayLength1D.y = (mapCheck.y - start.y + 1) * stepScaling.y; 
-		}
-
-		if (dir.z < 0) {
-			step.z = -1;
-			rayLength1D.z = (start.x - mapCheck.x) * stepScaling.z; 
-		}
-		else {
-			step.z = 1;
-			rayLength1D.z = (mapCheck.z - start.z + 1) * stepScaling.z;
-		}
-
-
-		bool didHit = false;
-		while (traveled < maxDist)
-		{
-			if (rayLength1D.x < rayLength1D.y && rayLength1D.x < rayLength1D.z){
-				mapCheck.x += step.x;
-				traveled = rayLength1D.x;
-				rayLength1D.x += stepScaling.x;
-			}
-			if (rayLength1D.y < rayLength1D.x && rayLength1D.y < rayLength1D.z){
-				mapCheck.y += step.y;
-				traveled = rayLength1D.y;
-				rayLength1D.y += stepScaling.y;
-			}
-			if (rayLength1D.z < rayLength1D.x && rayLength1D.z < rayLength1D.y){
-				mapCheck.z += step.z;
-				traveled = rayLength1D.z;
-				rayLength1D.z += stepScaling.z;
-			}
-
-
-			// boundary check
-			int offset = width/2;
-			float minBoundary = -offset;
-			float maxBoundary = minBoundary + width;
-			if (mapCheck.x >= minBoundary && mapCheck.x < maxBoundary
-			&&  mapCheck.z >= minBoundary && mapCheck.z < maxBoundary
-			&&  mapCheck.y >= 0 && mapCheck.y < height)
-			{
-				bool checkForCollisions = false;
-				int cubeIndex = 0;
-				// Cube cube{mapCheck.x, mapCheck.y, mapCheck.z};
-				// for (int i=0; i<8; ++i)
-				// {	
-				// 	float density = GetNoise3D(cube.corners[i].x, cube.corners[i].y, cube.corners[i].z);
-				// 	cube.corners[i].density = density;
-				// 	if (density > densityThreshold){
-				// 		cubeIndex |= (1 << i);
-				// 		checkForCollisions = true;
-				// 	}
-				// }
-
-				// // ray-face intersection tests
-				// float closestHitDistance = 100000000.0f;
-				// if (checkForCollisions)
-				// {	
-				// 	std::cout << " " << std::endl;
-				// 	std::cout << " " << std::endl;
-				// 	std::cout << " " << std::endl;
-	
-					
-				// 	const int* TriTableRow = TriTable[cubeIndex];
-				// 	int i = 0;
-				// 	while(TriTableRow[i] != -1){
-				// 		int a0 = cornerIndexAFromEdge[TriTableRow[i]];
-				// 		int b0 = cornerIndexBFromEdge[TriTableRow[i]];
-				// 		int a1 = cornerIndexAFromEdge[TriTableRow[i+1]];
-				// 		int b1 = cornerIndexBFromEdge[TriTableRow[i+1]];
-				// 		int a2 = cornerIndexAFromEdge[TriTableRow[i+2]];
-				// 		int b2 = cornerIndexBFromEdge[TriTableRow[i+2]];
-				// 		Corner c1 = VertexInterp(densityThreshold, cube.corners[a0], cube.corners[b0]);
-				// 		Corner c2 = VertexInterp(densityThreshold, cube.corners[a1], cube.corners[b1]);
-				// 		Corner c3 = VertexInterp(densityThreshold, cube.corners[a2], cube.corners[b2]);
-				// 		glm::vec3 normal = CalculateNormal(c1, c2, c3);
-				// 		glm::vec3 v1 = glm::vec3(c1.x, c1.y, c1.z);
-				// 		glm::vec3 v2 = glm::vec3(c2.x, c2.y, c2.z);
-				// 		glm::vec3 v3 = glm::vec3(c3.x, c3.y, c3.z);
-				// 		float fx = (v1.x + v2.x + v3.x) / 3;
-				// 		float fy = (v1.y + v2.y + v3.y) / 3;
-				// 		float fz = (v1.z + v2.z + v3.z) / 3;
-
-				
-
-				// 		// ray triangle intersection
-				// 		glm::vec3 edge1 = v2 - v1;
-				// 		glm::vec3 edge2 = v3 - v1;
-				// 		glm::vec3 p = glm::cross(dir, edge2);
-				// 		float determinant = glm::dot(edge1, p);
-				// 		if (determinant == 0.0) break;					// break
-				// 		float invDeterminant = 1.0f / determinant;
-				// 		glm::vec3 origin = start - v1;
-				// 		float u = glm::dot(origin, p) * invDeterminant;
-				// 		glm::vec3 q = glm::cross(origin, edge1);
-				// 		float v = glm::dot(dir, q) * invDeterminant;
-				// 		float dist = glm::dot(edge2, q) * invDeterminant;
-				// 		if (dist <= 0.0f) break;						// break
-				// 		glm::vec3 intersectionPos = start + dist * dir;
-						
-				// 		std::cout << "triangle position     : " << fx << " " << fy << " " << fz << std::endl;
-				// 		std::cout << "intersection position : " << intersectionPos.x << " " <<  intersectionPos.y << " " <<  intersectionPos.z << std::endl;
-
-				// 		float d = glm::distance(glm::vec3(fx, fy, fz), intersectionPos);
-				// 		std::cout << "dist: " << d << std::endl;
-	
-
-				// 		// Check if the intersection point lies within the triangle
-				// 		if (d < 1.0f && dist < closestHitDistance) 
-				// 		{
-				// 			closestHitDistance = dist;
-				// 			hit.distance = dist;
-				// 			hit.position = intersectionPos;
-				// 			hit.normal = normal;
-				// 			hit.hit = true;
-				// 			didHit = true;
-				// 			std::cout << "hit detected!" << std::endl;
-				// 		}
-				// 		i+=3;
-				// 	}
-				// }
-
-                hit.distance = 3.0f;
-                hit.position = glm::vec3(0.5f, 0.5f, 0.5f);
-                hit.normal = glm::vec3(0.0f, 0.0f, 1.0f);
-                hit.hit = true;
-                didHit = true;
-			}
-			if (didHit) break;
-		}
-		return hit;
-	}
 
 private:
 	int width = 24;
