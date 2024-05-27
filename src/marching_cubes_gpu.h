@@ -34,19 +34,112 @@ namespace std {
 }
 
 
+class Terrain{
+public:
+
+    struct Chunk {
+		int x;
+		int y;
+		int z;
+	};
+
+
+    void UpdateTerrain (int renderDistance, float playerX, float playerY, float playerZ)
+    {
+        // CHUNK COORDINATES THAT BOUND THE PLAYER
+        int CenterChunkX = static_cast<int>(std::floor(playerX / width) * width);
+        int CenterChunkY = static_cast<int>(std::floor(playerY / height) * height);
+	    int CenterChunkZ = static_cast<int>(std::floor(playerZ / width) * width);
+	    int offsetH = (renderDistance - 1) * width / 2;
+	    int offsetV = (renderDistance - 1) * height / 2;
+
+
+        // GENERATE 1 CHUNK PER FRAME
+		bool generatedChunkThisFrame = false;
+
+		// Chunk index marked for removal
+		int markedChunkIndex = -1;
+
+        for (int y = 0; y < renderDistance; ++y) {
+            for (int x = 0; x < renderDistance; ++x) {
+                for (int z = 0; z < renderDistance; ++z) {
+                    int worldX = x * width - offsetH + CenterChunkX;
+                    int worldY = y * height - offsetV + CenterChunkY;
+                    int worldZ = z * width - offsetH + CenterChunkZ;
+
+                    // Stop if chunk was generated this frame
+                    if (generatedChunkThisFrame) break;
+
+                    bool chunkPresent = false;
+
+                    // Check if there is a chunk at the position
+                    for (int i = 0; i < chunks.size(); ++i) {
+
+                        // 1 - check if chunk exists at current iteration position
+                        //if (chunks[i].x == worldX && chunks[i].y == worldY && chunks[i].z == worldZ) {
+                        if (chunks[i].x == worldX && chunks[i].z == worldZ) {
+                            chunkPresent = true;
+                            break;
+                        }
+
+
+                        // 2 - mark chunks for removal
+                       // int chunkDist = std::max(std::max(std::abs(chunks[i].x - CenterChunkX), std::abs(chunks[i].z - CenterChunkZ)), std::abs(chunks[i].y - CenterChunkY));
+                        int chunkDist = std::max(std::abs(chunks[i].x - CenterChunkX), std::abs(chunks[i].z - CenterChunkZ));
+                        if (chunkDist > std::floor((renderDistance * width) / 2.0)){
+                            markedChunkIndex = i;
+                        } 
+                    }
+
+
+                    // No chunk present? Create a new one
+                    if (!chunkPresent){
+                        GenerateChunk(worldX, 0, worldZ);
+                        Chunk newChunk;
+                        newChunk.x = worldX;
+                        newChunk.y = 0;
+                        newChunk.z = worldZ;
+                        chunks.push_back(newChunk);
+                        generatedChunkThisFrame = true;
+                    }
+                }
+            }
+        }
+
+		// Remove 1 Chunk per frame
+		if (markedChunkIndex != -1){
+			chunks.erase(chunks.begin() + markedChunkIndex);
+			models.erase(models.begin() + markedChunkIndex);
+		}
+    }
+
+
+    std::vector<Model> models;
+
+private:
+	int width = 32;
+	int height = 32;
+    std::vector<Chunk> chunks;
+};
+
+
 
 class TerrainGPU{
 public:
 
-	TerrainGPU()
+	TerrainGPU(int x, int y, int z)
 	{
+		offsetX = x;
+		offsetY = y;
+		offsetZ = z;
+
         // Load shaders from file
         std::string compShaderSource = LoadShader("./shaders/marching_cubes.compute");
         computeShaderProgram = CreateComputeShader(compShaderSource);
 
         // load once
         TriTableValues = LoadTriTableValues();
-        GenerateVolume();
+        GenerateVolume(x, y, z);
 		InitNoiseGenerator();
 	}
 
@@ -58,7 +151,6 @@ public:
 		Model model;
         std::vector<float> Vertices;
         std::vector<unsigned int> Indices;
-        offset = 0;
 
         VertexHashMap.clear();
 
@@ -66,7 +158,6 @@ public:
         int locc = BindUniformFloat1(computeShaderProgram, "densityThreshold", densityThreshold);
         BindUniformInt1(computeShaderProgram, "width", width);
         BindUniformInt1(computeShaderProgram, "height", height);
-        BindUniformInt1(computeShaderProgram, "offset", offset);
         PrintGLErrors();
 
         GLuint vbo1, vbo2, vbo3; 
@@ -210,7 +301,9 @@ public:
 private:
 	int width = 24;
 	int height = 24;
-    int offset = 0;
+    int offsetX = 0;
+    int offsetY = 0;
+    int offsetZ = 0;
     float densityThreshold = 0.6f;
     unsigned int computeShaderProgram;
 
@@ -241,13 +334,15 @@ private:
 		VertexHashMap[key] = value;
 	}
 
-    void GenerateVolume()
+	void GenerateVolume(int offsetX, int offsetY, int offsetZ)
     {
-        for (int y = 0; y < height+1; ++y){
-	        for (int x = 0; x < width+1; ++x){
-	            for (int z = 0; z < width+1; ++z){
-                    float density = GetVolume3D(x, y, z);
-                    VolumeData.push_back(density);
+        int i;
+        for (int y = 0; y < height + 1; ++y) {
+            for (int x = 0; x < width + 1; ++x) {
+                for (int z = 0; z < width + 1; ++z) {
+                    float density = GetVolume3D(x + offsetX, y + offsetY, z + offsetZ);
+                    VolumeData[i] = density;
+                    i += 1;
                 }
             }
         }
@@ -262,7 +357,7 @@ private:
 		float totalNoise = 0.0f;
 		for (int i = 0; i < octaves; ++i) 
 		{
-        	totalNoise += noiseGenerator3D.GetNoise((x - offset) * frequency, y * frequency, (z-offset) * frequency) * amplitude;
+        	totalNoise += noiseGenerator3D.GetNoise(x * frequency, y * frequency, z * frequency) * amplitude;
         	frequency *= 2.0f;  // increase the frequency for each octave
         	amplitude *= prominance;  // decrease the amplitude for each octave
     	}

@@ -97,7 +97,7 @@ int main()
     Init();
 
 
-    TerrainGPU terrainGPU;
+    TerrainGPU terrainGPU(0, 0, 0);
     std::vector<Model> models;
     Model model = terrainGPU.ConstructMeshGPU();
     models.push_back(model);
