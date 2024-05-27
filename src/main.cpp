@@ -97,9 +97,9 @@ int main()
     Init();
 
 
-    TerrainGPU terrainGPU(0, 0, 0);
+    TerrainGPU terrainGPU;
     std::vector<Model> models;
-    Model model = terrainGPU.ConstructMeshGPU();
+    Model model = terrainGPU.ConstructMeshGPU(0, 0, 0);
     models.push_back(model);
 
 
@@ -162,7 +162,7 @@ int main()
         if (Input.GetKey(KeyCode::Space))
         {
             // REGENERATE MODEL
-            model = terrainGPU.ConstructMeshGPU();
+            model = terrainGPU.ConstructMeshGPU(0, 0, 0);
             models.clear();
             models.push_back(model);
         }

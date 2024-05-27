@@ -38,24 +38,27 @@ namespace std {
 class TerrainGPU{
 public:
 
-	TerrainGPU(int x, int y, int z)
+	TerrainGPU()
 	{
-		offsetX = x;
-		offsetY = y;
-		offsetZ = z;
-
         // Load shaders from file
         std::string compShaderSource = LoadShader("./shaders/marching_cubes.compute");
         computeShaderProgram = CreateComputeShader(compShaderSource);
 
         // load once
         TriTableValues = LoadTriTableValues();
-        GenerateVolume(x, y, z);
+
+		// Allocate memory for volume data once
+        VolumeData = std::vector<float>((width + 1) * (width + 1) * (height + 1));
 		InitNoiseGenerator();
 	}
 
-	Model ConstructMeshGPU()
+
+	Model ConstructMeshGPU(int x, int y, int z)
 	{
+		offsetX = x;
+		offsetY = y;
+		offsetZ = z;
+		GenerateVolume(x, y, z);
 
         glUseProgram(computeShaderProgram);
 
@@ -68,12 +71,9 @@ public:
 		std::cout << "here" << std::endl;
 
         // shader uniforms
-        int locc = BindUniformFloat1(computeShaderProgram, "densityThreshold", densityThreshold);
+        BindUniformFloat1(computeShaderProgram, "densityThreshold", densityThreshold);
         BindUniformInt1(computeShaderProgram, "width", width);
         BindUniformInt1(computeShaderProgram, "height", height);
-        BindUniformInt1(computeShaderProgram, "offsetX", offsetX);
-        BindUniformInt1(computeShaderProgram, "offsetY", offsetY);
-        BindUniformInt1(computeShaderProgram, "offsetZ", offsetZ);
         PrintGLErrors();
 
         GLuint vbo1, vbo2, vbo3; 
