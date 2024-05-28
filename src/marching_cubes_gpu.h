@@ -52,22 +52,24 @@ public:
 
         // load once
         TriTableValues = LoadTriTableValues();
-        GenerateVolume();
 		InitNoiseGenerator();
+
+		// Allocate memory for volume data once
+        //VolumeData = std::vector<float>((width + 1) * (width + 1) * (height + 1));
+		GenerateVolume();
 	}
 
 	Model ConstructMeshGPU(int x, int y, int z)
 	{
-        auto start = std::chrono::high_resolution_clock::now();
-
+		auto start = std::chrono::high_resolution_clock::now();
         glUseProgram(computeShaderProgram);
 
 		Model model;
         std::vector<float> Vertices;
         std::vector<unsigned int> Indices;
-        offset = 0;
 
         VertexHashMap.clear();
+
 
         // shader uniforms
         int locc = BindUniformFloat1(computeShaderProgram, "densityThreshold", densityThreshold);
@@ -191,13 +193,13 @@ public:
             }
         }
 
-        auto end = std::chrono::high_resolution_clock::now();
+		auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
         float meshGenTime = duration.count();
-
         std::cout << "mesh generation time: " <<  meshGenTime * 1000 << "ms" << std::endl;
         std::cout << " " << std::endl;
         std::cout << " " << std::endl;
+		
         return model;
     }
 
@@ -394,9 +396,8 @@ public:
 	}
 
 private:
-	int width = 24;
-	int height = 24;
-    int offset = 0;
+	int width = 32;
+	int height = 32;
     float densityThreshold = 0.6f;
     unsigned int computeShaderProgram;
 
@@ -427,11 +428,11 @@ private:
 		VertexHashMap[key] = value;
 	}
 
-    void GenerateVolume()
+	void GenerateVolume()
     {
-        for (int y = 0; y < height+1; ++y){
-	        for (int x = 0; x < width+1; ++x){
-	            for (int z = 0; z < width+1; ++z){
+        for (int y = 0; y < height + 1; ++y) {
+            for (int x = 0; x < width + 1; ++x) {
+                for (int z = 0; z < width + 1; ++z) {
                     float density = GetVolume3D(x, y, z);
                     VolumeData.push_back(density);
                 }
@@ -439,16 +440,19 @@ private:
         }
     }
 
+
+
 	float GetVolume3D(float x, float y, float z)
 	{
 		int octaves = 6;
     	float amplitude = 1.0f;
 		float prominance = 0.4f;
-		float frequency = 4.0f;
+		float frequency = 2.0f;
 		float totalNoise = 0.0f;
 		for (int i = 0; i < octaves; ++i) 
 		{
-        	totalNoise += noiseGenerator3D.GetNoise((x - offset) * frequency, y * frequency, (z-offset) * frequency) * amplitude;
+        	//totalNoise += noiseGenerator3D.GetNoise((x + static_cast<float>(xOffset)) * frequency, (y + static_cast<float>(yOffset)) * frequency, (z + static_cast<float>(zOffset)) * frequency) * amplitude;
+        	totalNoise += noiseGenerator3D.GetNoise(x * frequency, y * frequency, z * frequency) * amplitude;
         	frequency *= 2.0f;  // increase the frequency for each octave
         	amplitude *= prominance;  // decrease the amplitude for each octave
     	}
