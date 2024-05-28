@@ -25,6 +25,13 @@ InputSystem Input{&window};
 RenderPipeline renderPipeline;
 Camera camera;
 
+struct Chunk
+{
+    int x;
+    int y;
+    int z;
+};
+
 
 
 void ProcessInput() 
@@ -152,6 +159,35 @@ int main()
             camera.rotation.x = std::max(-89.0f, std::min(89.0f, camera.rotation.x));
         }
         camera.UpdateProjectionView(); 
+
+
+
+
+
+
+        int chunkX = 
+        int chunkY
+        int chunkZ
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
