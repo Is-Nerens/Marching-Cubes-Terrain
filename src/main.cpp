@@ -109,6 +109,8 @@ int main()
     Model model = terrainGPU.ConstructMeshGPU(0, 0, 0);
     models.push_back(model);
 
+    std::vector<Chunk> chunks;
+
 
     float moveSpeed = 10.0f;
     float lookSensitivity = 15.0f;
@@ -162,71 +164,135 @@ int main()
 
 
 
+        // CHUNK COORDINATES THAT BOUND THE PLAYER
+        int renderDistance = 4;
+        int width = 24;
+        int height = 24;
+        int CenterChunkX = static_cast<int>(std::floor(camera.position.x / width) * width);
+        int CenterChunkY = static_cast<int>(std::floor(camera.position.y / height) * height);
+	    int CenterChunkZ = static_cast<int>(std::floor(camera.position.z / width) * width);
+	    int offsetH = (renderDistance - 1) * width / 2;
+	    int offsetV = (renderDistance - 1) * height / 2;
 
 
+        // GENERATE 1 CHUNK PER FRAME
+		bool generatedChunkThisFrame = false;
 
-        int chunkX = 
-        int chunkY
-        int chunkZ
+		// Chunk index marked for removal
+		int markedChunkIndex = -1;
+
+        for (int y = 0; y < renderDistance; ++y) {
+            for (int x = 0; x < renderDistance; ++x) {
+                for (int z = 0; z < renderDistance; ++z) {
+                    int worldX = x * width - offsetH + CenterChunkX;
+                    int worldY = y * height - offsetV + CenterChunkY;
+                    int worldZ = z * width - offsetH + CenterChunkZ;
+
+                    // Stop if chunk was generated this frame
+                    if (generatedChunkThisFrame) break;
+
+                    bool chunkPresent = false;
+
+                    // Check if there is a chunk at the position
+                    for (int i = 0; i < chunks.size(); ++i) {
+
+                        // 1 - check if chunk exists at current iteration position
+                        //if (chunks[i].x == worldX && chunks[i].y == worldY && chunks[i].z == worldZ) {
+                        if (chunks[i].x == worldX && chunks[i].z == worldZ) {
+                            chunkPresent = true;
+                            break;
+                        }
 
 
+                        // 2 - mark chunks for removal
+                       // int chunkDist = std::max(std::max(std::abs(chunks[i].x - CenterChunkX), std::abs(chunks[i].z - CenterChunkZ)), std::abs(chunks[i].y - CenterChunkY));
+                        int chunkDist = std::max(std::abs(chunks[i].x - CenterChunkX), std::abs(chunks[i].z - CenterChunkZ));
+                        if (chunkDist > std::floor((renderDistance * width) / 2.0)){
+                            markedChunkIndex = i;
+                        } 
+                    }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        // test terrain raycast
-        if (Input.MouseDown())
-        {
-            RayHit hit = terrainGPU.Raycast(camera.position, camera.Forward());
-            if (hit.hit) 
-            {
-                std::cout << "Fired ray, hit position: " << hit.position.x << " " <<  hit.position.y << " " << hit.position.z << std::endl;
-                glm::vec3 p = hit.position - camera.Forward() * 0.5f;
-
-                terrainGPU.AddDensity(hit.position, -0.02f);
-
-                // REGENERATE MODEL
-                model = terrainGPU.ConstructMeshGPU(10, 0, 0);
-                models.clear();
-                models.push_back(model);
+                    // No chunk present? Create a new one
+                    if (!chunkPresent){
+                        model = terrainGPU.ConstructMeshGPU(worldX, 0, worldZ);
+                        models.push_back(model);
+                        Chunk newChunk;
+                        newChunk.x = worldX;
+                        newChunk.y = 0;
+                        newChunk.z = worldZ;
+                        chunks.push_back(newChunk);
+                        generatedChunkThisFrame = true;
+                    }
+                }
             }
         }
 
-        if (Input.GetKey(KeyCode::Space))
-        {
-            RayHit hit = terrainGPU.Raycast(camera.position, camera.Forward());
-            if (hit.hit) 
-            {
-                std::cout << "Fired ray, hit position: " << hit.position.x << " " <<  hit.position.y << " " << hit.position.z << std::endl;
-                glm::vec3 p = hit.position - camera.Forward() * 0.5f;
+		// Remove 1 Chunk per frame
+		if (markedChunkIndex != -1){
+			chunks.erase(chunks.begin() + markedChunkIndex);
+			models.erase(models.begin() + markedChunkIndex);
+		}
 
-                terrainGPU.AddDensity(hit.position, 0.02f);
 
-                // REGENERATE MODEL
-                model = terrainGPU.ConstructMeshGPU(10, 0, 0);
-                models.clear();
-                models.push_back(model);
-            }
-        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        // // test terrain raycast
+        // if (Input.MouseDown())
+        // {
+        //     RayHit hit = terrainGPU.Raycast(camera.position, camera.Forward());
+        //     if (hit.hit) 
+        //     {
+        //         std::cout << "Fired ray, hit position: " << hit.position.x << " " <<  hit.position.y << " " << hit.position.z << std::endl;
+        //         glm::vec3 p = hit.position - camera.Forward() * 0.5f;
+
+        //         terrainGPU.AddDensity(hit.position, -0.02f);
+
+        //         // REGENERATE MODEL
+        //         model = terrainGPU.ConstructMeshGPU(10, 0, 0);
+        //         models.clear();
+        //         models.push_back(model);
+        //     }
+        // }
+
+        // if (Input.GetKey(KeyCode::Space))
+        // {
+        //     RayHit hit = terrainGPU.Raycast(camera.position, camera.Forward());
+        //     if (hit.hit) 
+        //     {
+        //         std::cout << "Fired ray, hit position: " << hit.position.x << " " <<  hit.position.y << " " << hit.position.z << std::endl;
+        //         glm::vec3 p = hit.position - camera.Forward() * 0.5f;
+
+        //         terrainGPU.AddDensity(hit.position, 0.02f);
+
+        //         // REGENERATE MODEL
+        //         model = terrainGPU.ConstructMeshGPU(10, 0, 0);
+        //         models.clear();
+        //         models.push_back(model);
+        //     }
+        // }
 
 
 
