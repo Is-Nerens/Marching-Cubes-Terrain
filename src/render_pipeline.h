@@ -45,7 +45,7 @@ public:
         glDepthMask(GL_TRUE);
         glDepthFunc(GL_LESS);
         glEnable(GL_DEPTH_TEST);
-        glClearDepth(1.f);
+        glClearDepth(1.0f);
         glDepthRange(0.0f, 1.0f);
         glEnable(GL_CULL_FACE);
         glCullFace(GL_FRONT);

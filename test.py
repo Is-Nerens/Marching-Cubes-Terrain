@@ -38,7 +38,7 @@ def Set(x, y, z, value):
     global maxProbeDistance
 
     for i in range(maxProbeDistance+1):
-        index = (keyIndex + i) % arraySize;
+        index = (keyIndex + i) % arraySize
         if vertexMapKeys[index * 3] == x and vertexMapKeys[index * 3 + 1] == y and vertexMapKeys[index * 3 + 2] == z:
             vertexMap[index] = value
             print("[Set] key found in location")
@@ -48,12 +48,12 @@ def Set(x, y, z, value):
     while (stepCount < arraySize):
         index = (keyIndex + stepCount) % arraySize
         if vertexMap[index] == -1:
-            vertexMapKeys[index * 3]     = x;
-            vertexMapKeys[index * 3 + 1] = y;
-            vertexMapKeys[index * 3 + 2] = z;
-            vertexMap[index] = value;
+            vertexMapKeys[index * 3]     = x
+            vertexMapKeys[index * 3 + 1] = y
+            vertexMapKeys[index * 3 + 2] = z
+            vertexMap[index] = value
             print("[Set] found new empty location")
-            return;
+            return
 
         print(f"[Set] probing for empty location {vertexMap[index]}")
         

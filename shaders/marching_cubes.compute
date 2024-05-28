@@ -116,9 +116,9 @@ float Interpolate(float a0, float a1, float w)
 
 float GetDensity(float x, float y, float z)
 {
-    x = (x + offsetX) * 0.1f;
-    y = (y + offsetY) * 0.1f;
-    z = (z + offsetZ) * 0.1f;
+    x = (x) * 0.1f;
+    y = (y) * 0.1f;
+    z = (z) * 0.1f;
 
     // Grid cell corner coordinates
     int x0 = int(floor(x));

@@ -6,11 +6,11 @@
 #include "model.h"
 #include "shader.h"
 #include "error.h"
+#include "vertex_hashmap.h"
 #include "perlin_noise_3d.h"
 #include "FastNoiseLite.h"
 #include <vector>
 #include <GL/glew.h>
-#include <unordered_map>
 #include <iostream>
 #include <functional>
 #include <algorithm>
@@ -29,6 +29,7 @@ the app runs faster when mesh uses an index buffer, however the generation takes
 chunk size of 24 generates in less than half the time of 32 * 32 chunk size
 chunk unloading has nothing to do with the slowdown
 the GPU perlin noise system needs to have octaves and a surface
+i could shave off 2 - 3 ms if i improve the vertex hash speed
 */
 
 struct RayHit
@@ -38,21 +39,6 @@ struct RayHit
 	float distance = 0.0f;
 	bool hit = false;
 };
-
-// Custom hash function for tuple<float, float, float>
-namespace std {
-    template <>
-    struct hash<std::tuple<float, float, float>> {
-        size_t operator()(const std::tuple<float, float, float>& t) const {
-            // Combine hashes of individual float values
-            size_t h1 = std::hash<float>{}(std::get<0>(t));
-            size_t h2 = std::hash<float>{}(std::get<1>(t));
-            size_t h3 = std::hash<float>{}(std::get<2>(t));
-            return h1 ^ (h2 << 1) ^ (h3 << 2);
-        }
-    };
-}
-
 
 
 class TerrainGPU{
@@ -74,12 +60,13 @@ public:
 
 	Model ConstructMeshGPU(int x, int y, int z)
 	{
-		auto start = std::chrono::high_resolution_clock::now();
         glUseProgram(computeShaderProgram);
 
 		Model model;
         std::vector<float> Vertices;
         std::vector<unsigned int> Indices;
+
+		VertexHasher::ResetHashTable();
 
 		xOffset = x;
 		yOffset = y;
@@ -140,19 +127,17 @@ public:
         glDeleteBuffers(1, &vbo3);
 
 
-
-		VertexHashMap.clear();
-		
         // set model vertices and indices
         int vCount = (width + 1) * (width + 1) * (height + 1) * 48;
+		auto start = std::chrono::high_resolution_clock::now();
         for (int i=0; i<vCount; i+=12)
         {
             if (Vertices[i] != 0)
             {
                 // vertex 1
-                if (GetVertexIndex(Vertices[i], Vertices[i+1], Vertices[i+2]) == -1)
+                if (VertexHasher::GetVertexIndex(Vertices[i], Vertices[i+1], Vertices[i+2]) == -1)
                 {
-                    SetVertexIndex(Vertices[i], Vertices[i+1], Vertices[i+2], model.VertexCount());
+                    VertexHasher::SetVertexIndex(Vertices[i], Vertices[i+1], Vertices[i+2], model.VertexCount());
                     model.indices.push_back(model.VertexCount());
                     model.vertices.push_back(Vertices[i]);
                     model.vertices.push_back(Vertices[i+1]);
@@ -163,13 +148,13 @@ public:
                 }
                 else
                 {
-                    model.indices.push_back(GetVertexIndex(Vertices[i], Vertices[i+1], Vertices[i+2]));
+                    model.indices.push_back(VertexHasher::GetVertexIndex(Vertices[i], Vertices[i+1], Vertices[i+2]));
                 }
 
                 // vertex 2
-                if (GetVertexIndex(Vertices[i+3], Vertices[i+4], Vertices[i+5]) == -1)
+                if (VertexHasher::GetVertexIndex(Vertices[i+3], Vertices[i+4], Vertices[i+5]) == -1)
                 {
-                    SetVertexIndex(Vertices[i+3], Vertices[i+4], Vertices[i+5], model.VertexCount());
+                    VertexHasher::SetVertexIndex(Vertices[i+3], Vertices[i+4], Vertices[i+5], model.VertexCount());
                     model.indices.push_back(model.VertexCount());
                     model.vertices.push_back(Vertices[i+3]);
                     model.vertices.push_back(Vertices[i+4]);
@@ -180,13 +165,13 @@ public:
                 }
                 else
                 {
-                    model.indices.push_back(GetVertexIndex(Vertices[i+3], Vertices[i+4], Vertices[i+5]));
+                    model.indices.push_back(VertexHasher::GetVertexIndex(Vertices[i+3], Vertices[i+4], Vertices[i+5]));
                 }
 
                 // vertex 3
-                if (GetVertexIndex(Vertices[i+6], Vertices[i+7], Vertices[i+8]) == -1)
+                if (VertexHasher::GetVertexIndex(Vertices[i+6], Vertices[i+7], Vertices[i+8]) == -1)
                 {
-                    SetVertexIndex(Vertices[i+6], Vertices[i+7], Vertices[i+8], model.VertexCount());
+                    VertexHasher::SetVertexIndex(Vertices[i+6], Vertices[i+7], Vertices[i+8], model.VertexCount());
                     model.indices.push_back(model.VertexCount());
                     model.vertices.push_back(Vertices[i+6]);
                     model.vertices.push_back(Vertices[i+7]);
@@ -197,7 +182,7 @@ public:
                 }
                 else
                 {
-                    model.indices.push_back(GetVertexIndex(Vertices[i+6], Vertices[i+7], Vertices[i+8]));
+                    model.indices.push_back(VertexHasher::GetVertexIndex(Vertices[i+6], Vertices[i+7], Vertices[i+8]));
                 }
             }
         }
@@ -417,30 +402,8 @@ private:
 
     std::vector<int> TriTableValues;
     std::vector<float> VolumeData;
-	std::unordered_map<std::tuple<float, float, float>, unsigned int> VertexHashMap;
 	FastNoiseLite noiseGenerator3D;
 	FastNoiseLite noiseGenerator2D;
-
-    unsigned int GetVertexIndex(float x, float y, float z)
-	{
-		std::tuple<float, float, float> key(x, y, z);
-
-		auto it = VertexHashMap.find(key);
-		if (it != VertexHashMap.end()) 
-		{
-			return it->second;
-		} 
-		else 
-		{
-			return -1;
-		}
-	}
-
-	void SetVertexIndex(float x, float y, float z, unsigned int value)
-	{
-		std::tuple<float, float, float> key(x, y,z);
-		VertexHashMap[key] = value;
-	}
 
 
 	void GenerateVolume()
@@ -460,8 +423,6 @@ private:
             }
         }
     }
-
-
 
 	float GetVolume3D(float x, float y, float z)
 	{
