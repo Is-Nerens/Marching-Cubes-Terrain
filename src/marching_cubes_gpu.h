@@ -6,6 +6,7 @@
 #include "model.h"
 #include "shader.h"
 #include "error.h"
+#include "perlin_noise_3d.h"
 #include "FastNoiseLite.h"
 #include <vector>
 #include <GL/glew.h>
@@ -16,6 +17,19 @@
 #include <string>
 #include <tuple>
 #include <chrono>
+
+
+
+/*
+The speed error has nothing to do with offsets
+it has nothing to do with the hash function
+nothing to do with the GenerateVolume
+generating perlin noise on the gpu is ~3.5 ms compared to ~16 ms on the cpu
+the app runs faster when mesh uses an index buffer, however the generation takes longer
+chunk size of 24 generates in less than half the time of 32 * 32 chunk size
+chunk unloading has nothing to do with the slowdown
+the GPU perlin noise system needs to have octaves and a surface
+*/
 
 struct RayHit
 {
@@ -55,8 +69,7 @@ public:
 		InitNoiseGenerator();
 
 		// Allocate memory for volume data once
-        //VolumeData = std::vector<float>((width + 1) * (width + 1) * (height + 1));
-		GenerateVolume();
+        VolumeData = std::vector<float>((width + 1) * (width + 1) * (height + 1));
 	}
 
 	Model ConstructMeshGPU(int x, int y, int z)
@@ -68,25 +81,28 @@ public:
         std::vector<float> Vertices;
         std::vector<unsigned int> Indices;
 
-        VertexHashMap.clear();
+		xOffset = x;
+		yOffset = y;
+		zOffset = z;
 
+		// GenerateVolume();
 
         // shader uniforms
-        int locc = BindUniformFloat1(computeShaderProgram, "densityThreshold", densityThreshold);
-        BindUniformInt1(computeShaderProgram, "width", width);
-        BindUniformInt1(computeShaderProgram, "height", height);
-        BindUniformInt1(computeShaderProgram, "offsetX", x);
-        BindUniformInt1(computeShaderProgram, "offsetY", y);
-        BindUniformInt1(computeShaderProgram, "offsetZ", z);
+        BindUniformFloat1(computeShaderProgram, "densityThreshold", densityThreshold);
+        // BindUniformInt1(computeShaderProgram, "width", width);
+        // BindUniformInt1(computeShaderProgram, "height", height);
+        BindUniformInt1(computeShaderProgram, "offsetX", xOffset);
+        BindUniformInt1(computeShaderProgram, "offsetY", yOffset);
+        BindUniformInt1(computeShaderProgram, "offsetZ", zOffset);
         PrintGLErrors();
 
         GLuint vbo1, vbo2, vbo3; 
 
         // Bind buffer for the first vector (VolumeData)
-        glGenBuffers(1, &vbo1);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo1);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * VolumeData.size(), VolumeData.data(), GL_STATIC_READ);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, vbo1);
+        // glGenBuffers(1, &vbo1);
+        // glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo1);
+        // glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * VolumeData.size(), VolumeData.data(), GL_STATIC_READ);
+        // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, vbo1);
 
         // Bind buffer Vertices
         glGenBuffers(1, &vbo2);
@@ -101,16 +117,6 @@ public:
         glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * 4096, TriTableValues.data(), GL_STATIC_READ); 
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, vbo3);
 
-        // Atomic flag
-        GLuint atomicFlagBuffer;
-        GLuint initialAtomicValue = 0; // Initial value for the atomic integer
-        glGenBuffers(1, &atomicFlagBuffer);
-        glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicFlagBuffer);
-        glBufferData(GL_ATOMIC_COUNTER_BUFFER, sizeof(GLuint), &initialAtomicValue, GL_DYNAMIC_DRAW);
-        glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 3, atomicFlagBuffer);
-        GLuint *ptr = (GLuint*)glMapBuffer(GL_ATOMIC_COUNTER_BUFFER, GL_READ_WRITE);
-        *ptr = 0; // Initialize counter value
-        glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
  
         // use compute shader
         glUseProgram(computeShaderProgram);
@@ -129,11 +135,14 @@ public:
         }
 
         // free GPU memory
-        glDeleteBuffers(1, &vbo1);
+        // glDeleteBuffers(1, &vbo1);
         glDeleteBuffers(1, &vbo2);
         glDeleteBuffers(1, &vbo3);
 
 
+
+		VertexHashMap.clear();
+		
         // set model vertices and indices
         int vCount = (width + 1) * (width + 1) * (height + 1) * 48;
         for (int i=0; i<vCount; i+=12)
@@ -193,9 +202,11 @@ public:
             }
         }
 
+
 		auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
         float meshGenTime = duration.count();
+		
         std::cout << "mesh generation time: " <<  meshGenTime * 1000 << "ms" << std::endl;
         std::cout << " " << std::endl;
         std::cout << " " << std::endl;
@@ -396,9 +407,12 @@ public:
 	}
 
 private:
-	int width = 32;
-	int height = 32;
-    float densityThreshold = 0.6f;
+	int width = 24;
+	int height = 24;
+	int xOffset = 0;
+	int yOffset = 0;
+	int zOffset = 0;
+    float densityThreshold = 0.01f;
     unsigned int computeShaderProgram;
 
     std::vector<int> TriTableValues;
@@ -428,13 +442,20 @@ private:
 		VertexHashMap[key] = value;
 	}
 
+
 	void GenerateVolume()
     {
+		int i=0;
+		//#pragma omp parallel for
         for (int y = 0; y < height + 1; ++y) {
             for (int x = 0; x < width + 1; ++x) {
                 for (int z = 0; z < width + 1; ++z) {
-                    float density = GetVolume3D(x, y, z);
-                    VolumeData.push_back(density);
+                    //float density = PerlinNoise3D((x + xOffset + 0.01f) * 0.1f, (y + yOffset + 0.01f) * 0.1f, (z + zOffset + 0.01f) * 0.1f);
+                    float density = PerlinNoise3D((x + 0.01f) * 0.1f, (y + 0.01f) * 0.1f, (z + 0.01f) * 0.1f);
+                    //float density = GetVolume3D(x + xOffset, y + yOffset, z + zOffset);
+                    //float density = GetVolume3D(x, y, z);
+                    VolumeData[i] = density;
+					i += 1;
                 }
             }
         }

@@ -65,6 +65,9 @@ void ProcessInput()
             // UPDATE CAMERA MATRIX
             camera.SetViewport(global.WIDTH, global.HEIGHT);
             camera.UpdateProjectionView();
+
+            // UPDATE GL VIEWPORT
+            glViewport(0, 0, global.WIDTH, global.HEIGHT);  
         }
 
         // INPUT SYSTEM HANDLE IO EVENTS
@@ -82,7 +85,7 @@ void Init()
 
     // INITIALISE CAMERA
     camera.SetViewport(global.WIDTH, global.HEIGHT);
-    camera.position = {2.0f, 28.0f, 8.0f};
+    camera.position = {0.0f, 0.0f, 0.0f};
     camera.UpdateProjectionView(); 
 
     // INITIALISE RENDER PIPELINE
@@ -106,10 +109,8 @@ int main()
 
     TerrainGPU terrainGPU;
     std::vector<Model> models;
-    Model model = terrainGPU.ConstructMeshGPU(0, 0, 0);
-    models.push_back(model);
-
     std::vector<Chunk> chunks;
+    Model model;
 
 
     float moveSpeed = 10.0f;
@@ -165,25 +166,23 @@ int main()
 
 
         // CHUNK COORDINATES THAT BOUND THE PLAYER
-        int renderDistance = 5;
-        int width = 32;
-        int height = 32;
+        int renderDistanceH = 3;
+        int renderDistanceV = 3;
+        int width = 24;
+        int height = 24;
         int CenterChunkX = static_cast<int>(std::floor(camera.position.x / width) * width);
         int CenterChunkY = static_cast<int>(std::floor(camera.position.y / height) * height);
 	    int CenterChunkZ = static_cast<int>(std::floor(camera.position.z / width) * width);
-	    int offsetH = (renderDistance - 1) * width / 2;
-	    int offsetV = (renderDistance - 1) * height / 2;
+	    int offsetH = (renderDistanceH - 1) * width / 2;
+	    int offsetV = (renderDistanceV - 1) * height / 2;
 
 
         // GENERATE 1 CHUNK PER FRAME
 		bool generatedChunkThisFrame = false;
 
-		// Chunk index marked for removal
-		int markedChunkIndex = -1;
-
-        for (int y = 0; y < renderDistance; ++y) {
-            for (int x = 0; x < renderDistance; ++x) {
-                for (int z = 0; z < renderDistance; ++z) {
+        for (int y = 0; y < renderDistanceV; ++y) {
+            for (int x = 0; x < renderDistanceH; ++x) {
+                for (int z = 0; z < renderDistanceH; ++z) {
                     int worldX = x * width - offsetH + CenterChunkX;
                     int worldY = y * height - offsetV + CenterChunkY;
                     int worldZ = z * width - offsetH + CenterChunkZ;
@@ -202,14 +201,6 @@ int main()
                             chunkPresent = true;
                             break;
                         }
-
-
-                        // 2 - mark chunks for removal
-                        int chunkDist = std::max(std::max(std::abs(chunks[i].x - CenterChunkX), std::abs(chunks[i].z - CenterChunkZ)), std::abs(chunks[i].y - CenterChunkY));
-                        //int chunkDist = std::max(std::abs(chunks[i].x - CenterChunkX), std::abs(chunks[i].z - CenterChunkZ));
-                        if (chunkDist > std::floor((renderDistance * width) / 2.0)){
-                            markedChunkIndex = i;
-                        } 
                     }
 
 
@@ -228,21 +219,21 @@ int main()
             }
         }
 
-		// Remove 1 Chunk per frame
-		if (markedChunkIndex != -1){
-			chunks.erase(chunks.begin() + markedChunkIndex);
-			models.erase(models.begin() + markedChunkIndex);
-		}
 
-
-
-
-
-
-
-
-
-
+        // Remove one chunk
+        if (generatedChunkThisFrame)
+        {
+            for (int i=0; i<chunks.size(); ++i)
+            {
+                
+                int chunkDist = std::max(std::max(std::abs(chunks[i].x - CenterChunkX), std::abs(chunks[i].z - CenterChunkZ)), std::abs(chunks[i].y - CenterChunkY));
+                if (chunkDist > std::floor((renderDistanceH * width) / 2.0)){
+                    chunks.erase(chunks.begin() + i);
+			        models.erase(models.begin() + i);
+                    break;
+                } 
+            }
+        }
 
 
 

@@ -10,16 +10,15 @@ uniform int offsetX;
 uniform int offsetY;
 uniform int offsetZ;
 
-layout(binding = 0) readonly buffer VolumeDataBuffer {
-    float VolumeData[];
-};
+// layout(binding = 0) readonly buffer VolumeDataBuffer {
+//     float VolumeData[];
+// };
 layout(binding = 1) writeonly buffer VertexBuffer {
     float vertices[];
 };
 layout(binding = 2) readonly buffer TriTableBuffer {
     int TriTable[];
 };
-layout(binding = 3) uniform atomic_uint atomicFlag;
 
 
 // cornerIndexAFromEdge array
@@ -58,14 +57,132 @@ vec3 CalculateNormal(vec3 v1, vec3 v2, vec3 v3)
     return normalize(unnormalized);
 }
 
-float GetDensity(float xF, float yF, float zF)
-{
-    int x = int(floor(xF + 0.5));
-    int y = int(floor(yF + 0.5));
-    int z = int(floor(zF + 0.5));
-    int index = z + (width+1) * (x + (height+1) * y);
-    return VolumeData[index];
+
+
+
+
+
+
+
+
+
+
+
+
+
+// PERLIN NOISE ON THE GPU
+vec3 RandomGradient(int ix, int iy, int iz) {
+    const uint w = 32u;
+    const uint s = w / 2;
+    
+    uint a = uint(ix), b = uint(iy), c = uint(iz);
+    a *= 3284157443U;
+    b ^= a << s | a >> (w - s);
+    b *= 1911520717U;
+    a ^= b << s | b >> (w - s);
+    a *= 2048419325U;
+    float randomX = float(a) * (3.14159265 / float(0xFFFFFFFFU)); // in [0, 2*Pi]
+
+    // Generate a random angle for the z-axis
+    c *= 3329032859U;
+    c ^= a << s | a >> (w - s);
+    c *= 1431691223U;
+    b ^= c << s | c >> (w - s);
+    b *= 1812433253U;
+    float randomZ = float(b) * (3.14159265 / float(0xFFFFFFFFU)); // in [0, 2*Pi]
+
+    // Create the vector from the angles
+    vec3 v;
+    v.x = sin(randomX) * cos(randomZ);
+    v.y = cos(randomX) * cos(randomZ);
+    v.z = sin(randomZ);
+
+    return v;
 }
+
+float DotGridGradient(int ix, int iy, int iz, float x, float y, float z)
+{
+    vec3 gradient = RandomGradient(ix, iy, iz);
+    float dx = x - float(ix);
+    float dy = y - float(iy);
+    float dz = z - float(iz);
+    return dot(gradient, vec3(dx, dy, dz));
+}
+
+float Interpolate(float a0, float a1, float w)
+{
+    return (a1 - a0) * (3.0f - w * 2.0f) * w * w + a0;
+}
+
+float GetDensity(float x, float y, float z)
+{
+    x = (x + offsetX) * 0.1f;
+    y = (y + offsetY) * 0.1f;
+    z = (z + offsetZ) * 0.1f;
+
+    // Grid cell corner coordinates
+    int x0 = int(floor(x));
+    int y0 = int(floor(y));
+    int z0 = int(floor(z));
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+    int z1 = z0 + 1;
+
+    // Interpolation weights
+    float sx = x - float(x0);
+    float sy = y - float(y0);
+    float sz = z - float(z0);
+
+    // Bottom corners
+    float n0 = DotGridGradient(x0, y0, z0, x, y, z);
+    float n1 = DotGridGradient(x1, y0, z0, x, y, z);
+    float n2 = DotGridGradient(x0, y1, z0, x, y, z);
+    float n3 = DotGridGradient(x1, y1, z0, x, y, z);
+
+    // Top corners
+    float n4 = DotGridGradient(x0, y0, z1, x, y, z);
+    float n5 = DotGridGradient(x1, y0, z1, x, y, z);
+    float n6 = DotGridGradient(x0, y1, z1, x, y, z);
+    float n7 = DotGridGradient(x1, y1, z1, x, y, z);
+
+    // Trilinear interpolation
+    float ix0 = Interpolate(n0, n1, sx);
+    float ix1 = Interpolate(n2, n3, sx);
+    float ix2 = Interpolate(n4, n5, sx);
+    float ix3 = Interpolate(n6, n7, sx);
+
+    float iy0 = Interpolate(ix0, ix1, sy);
+    float iy1 = Interpolate(ix2, ix3, sy);
+
+    float interpolatedValue = Interpolate(iy0, iy1, sz);
+    return interpolatedValue;
+}
+// float GetDensity(float xF, float yF, float zF)
+// {
+//     int x = int(floor(xF + 0.5));
+//     int y = int(floor(yF + 0.5));
+//     int z = int(floor(zF + 0.5));
+//     int index = z + (width+1) * (x + (height+1) * y);
+//     return VolumeData[index];
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 int TriTableGet(int cubeIndex, int i)
 {
