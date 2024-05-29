@@ -60,7 +60,7 @@ public:
 
 	Model ConstructMeshGPU(int x, int y, int z)
 	{
-		Debug::StartTimer();
+		// Debug::StartTimer();
         glUseProgram(computeShaderProgram);
 
 		Model model;
@@ -187,10 +187,7 @@ public:
             }
         }
 
-		Debug::EndTimer();
-        std::cout << " " << std::endl;
-        std::cout << " " << std::endl;
-		
+		// Debug::EndTimer();
         return model;
     }
 
@@ -387,8 +384,8 @@ public:
 	}
 
 private:
-	int width = 24;
-	int height = 24;
+	int width = 16;
+	int height = 16;
 	int xOffset = 0;
 	int yOffset = 0;
 	int zOffset = 0;

@@ -1,4 +1,5 @@
 #pragma once
+#define STB_IMAGE_IMPLEMENTATION
 
 #include <GL/glew.h>
 #include <malloc.h>
@@ -8,11 +9,13 @@
 #include <sstream>
 #include <string>
 #include "model.h"
-#include "texture.h"
+#include "error.h"
+// #include "texture.h"
 #include "camera.h"
 #include "vendor/glm/glm.hpp"
 #include "vendor/glm/gtc/matrix_transform.hpp"
 #include "vendor/glm/gtc/type_ptr.hpp"
+#include "vendor/stb_image.h"
 
 
 class RenderPipeline {
@@ -28,15 +31,91 @@ public:
         shaderProgram = CreateShader(vertexShaderSource, fragmentShaderSource);
         glUseProgram(shaderProgram);
 
+
+    
+
         // passing data to the shader via uniforms
         int location = glGetUniformLocation(shaderProgram, "u_Colour");
         glUniform4f(location, 0.74f, 0.43f, 0.439f, 1.0f);
     
-        // pass texture to shader
-        Texture texture("textures/rock.png");
-        texture.Bind(0);
-        albedoUniformLocation = glGetUniformLocation(shaderProgram, "u_TextureAlbedo");
-        glUniform1i(albedoUniformLocation, 0); 
+
+
+        // SEND TEXTURES TO GPU ////////////////////////////
+        // Texture rock_1_albedo_Texture("textures/rock_1_albedo.jpg");
+        // rock_1_albedo_Texture.Bind(0);
+        // glUniform1i(glGetUniformLocation(shaderProgram, "u_albedo_texture"), 0); 
+
+        // Texture rock_1_normal_Texture("textures/rock_1_normal.jpg");
+        // rock_1_normal_Texture.Bind(1);
+        // glUniform1i(glGetUniformLocation(shaderProgram, "u_normal_texture"), 1); 
+
+        // Texture rock_1_height_Texture("textures/rock_1_height.jpg");
+        // rock_1_height_Texture.Bind(2);
+        // glUniform1i(glGetUniformLocation(shaderProgram, "u_height_texture"), 2); 
+
+        // Texture rock_1_roughness_Texture("textures/rock_1_roughness.jpg"); 
+        // rock_1_roughness_Texture.Bind(3);
+        // glUniform1i(glGetUniformLocation(shaderProgram, "u_roughness_texture"), 3); 
+
+
+
+        int width, height, bpp;
+        stbi_set_flip_vertically_on_load(1);
+
+
+
+        // ALBEDO TEXTURE ////////////////////////
+        unsigned int texture0;
+        std::string path1 = "textures/rock_1_albedo.jpg";
+        unsigned char* localbuffer1 = stbi_load(path1.c_str(), &width, &height, &bpp, 4);
+
+        glGenTextures(1, &texture0);
+        glActiveTexture(GL_TEXTURE0 + 0);
+        glBindTexture(GL_TEXTURE_2D, texture0);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, localbuffer1);
+        stbi_image_free(localbuffer1);
+
+
+        
+
+        // NORMAL MAP TEXTURE /////////////////////
+        unsigned int texture1;
+        std::string path2 = "textures/rock_1_normal.jpg";
+        unsigned char* localbuffer2 = stbi_load(path2.c_str(), &width, &height, &bpp, 4);
+
+        glGenTextures(1, &texture1);
+        glActiveTexture(GL_TEXTURE0 + 1);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, localbuffer2);
+        stbi_image_free(localbuffer2);
+
+        // FOR SOME REASON IT ONLY LETS ME USE TWO TEXTURES WHEN THIS CODE BELOW IS HERE RATHER THAN ABOVE LIKE IN THE ALBEDO
+        glBindTexture(GL_TEXTURE_2D, texture1);
+
+
+
+
+
+        glUniform1i(glGetUniformLocation(shaderProgram, "u_albedo_texture"), 0); 
+        glUniform1i(glGetUniformLocation(shaderProgram, "u_normal_texture"), 1); 
+
+
+
+
+
+
+
+
+
         
         MVP_UniformLocation = glGetUniformLocation(shaderProgram, "u_MVP");
         modelMatrixUniformLocation = glGetUniformLocation(shaderProgram, "u_ModelPositionMatrix");
@@ -72,8 +151,10 @@ public:
 
             if (MVP_UniformLocation != -1) glUniformMatrix4fv(MVP_UniformLocation, 1, GL_FALSE, &mvp[0][0]);
             else std::cerr << "Failed to locate uniform u_MVP in shader program" << std::endl;
+
             if (modelMatrixUniformLocation != -1) glUniformMatrix4fv(modelMatrixUniformLocation, 1, GL_FALSE, &modelMat[0][0]);
             else std::cerr << "Failed to locate uniform u_ModelPositionMatrix in shader program" << std::endl;
+            
             if (cameraPosUniformLocation != -1) glUniform3fv(cameraPosUniformLocation, 1, glm::value_ptr(cameraPos));
             else std::cerr << "Failed to locate uniform u_CameraPos in shader program" << std::endl;
 
@@ -176,5 +257,4 @@ private:
     int MVP_UniformLocation;
     int modelMatrixUniformLocation;
     int cameraPosUniformLocation;
-    int albedoUniformLocation;
 };

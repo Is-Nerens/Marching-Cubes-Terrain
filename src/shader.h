@@ -21,6 +21,11 @@ int BindUniformInt1(unsigned int shaderProgram, std::string uniformName, int val
     return loc;
 }
 
+void SetUniform1i(const std::string& name, int value, unsigned int shaderProgram)
+{
+    glUniform1i(glGetUniformLocation(shaderProgram, "u_albedo_texture"), value);
+}
+
 int GetShaderProgramInUse()
 {
     int currentProgram;

@@ -5,8 +5,8 @@
 
 namespace VertexHasher
 {
-    int vertexMap[65536];
-    float vertexMapKeys[196608];
+    int vertexMap[32768];
+    float vertexMapKeys[131072];
     int maxProbeDistance = 0;
 
     void ResetHashTable()
@@ -21,7 +21,7 @@ namespace VertexHasher
         size_t h1 = std::hash<float>{}(x);
         size_t h2 = std::hash<float>{}(y);
         size_t h3 = std::hash<float>{}(z);
-        int hash = abs(static_cast<int>(h1 ^ (h2 << 1) ^ (h3 << 2)) % 65536);
+        int hash = abs(static_cast<int>(h1 ^ (h2 << 1) ^ (h3 << 2)) % 32768);
         return hash;
     }
 
@@ -31,7 +31,7 @@ namespace VertexHasher
 
         for (int i=0; i<maxProbeDistance+1; ++i)
         {
-            int index = (keyIndex + i) % 65536;
+            int index = (keyIndex + i) % 32768;
             if (vertexMapKeys[index * 3] == x && vertexMapKeys[index * 3 + 1] == y && vertexMapKeys[index * 3 + 2] == z)
             {
                 return vertexMap[index];
@@ -48,7 +48,7 @@ namespace VertexHasher
 
         for (int i=0; i<maxProbeDistance+1; ++i)
         {
-            int index = (keyIndex + i) % 65536;
+            int index = (keyIndex + i) % 32768;
             if (vertexMapKeys[index * 3] == x && vertexMapKeys[index * 3 + 1] == y && vertexMapKeys[index * 3 + 2] == z)
             {
                 vertexMap[index] = value;
@@ -58,9 +58,9 @@ namespace VertexHasher
 
 
         int stepCount = 0;
-        while(stepCount < 65536)
+        while(stepCount < 32768)
         {
-            int index = (keyIndex + stepCount) % 65536;
+            int index = (keyIndex + stepCount) % 32768;
             if (vertexMap[index] == -1)
             {
                 vertexMapKeys[index * 3] = x;

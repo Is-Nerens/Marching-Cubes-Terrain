@@ -121,6 +121,7 @@ int main()
 
     // MAIN UPDATE LOOP
     while (window.isOpen()) {
+        Debug::StartTimer();
         auto start = std::chrono::high_resolution_clock::now();
         window.clear();
         ProcessInput();
@@ -166,10 +167,10 @@ int main()
 
 
         // CHUNK COORDINATES THAT BOUND THE PLAYER
-        int renderDistanceH = 6;
-        int renderDistanceV = 6;
-        int width = 24;
-        int height = 24;
+        int renderDistanceH = 8;
+        int renderDistanceV = 5;
+        int width = 16;
+        int height = 16;
         int CenterChunkX = static_cast<int>(std::floor(camera.position.x / width) * width);
         int CenterChunkY = static_cast<int>(std::floor(camera.position.y / height) * height);
 	    int CenterChunkZ = static_cast<int>(std::floor(camera.position.z / width) * width);
@@ -178,7 +179,7 @@ int main()
 
 
         // GENERATE 1 CHUNK PER FRAME
-		bool generatedChunkThisFrame = false;
+        bool generatedChunkThisFrame = false;
 
         for (int y = 0; y < renderDistanceV; ++y) {
             for (int x = 0; x < renderDistanceH; ++x) {
@@ -220,7 +221,7 @@ int main()
         }
 
 
-        // Remove one chunk
+        // Remove one chunks
         if (generatedChunkThisFrame)
         {
             for (int i=0; i<chunks.size(); ++i)
@@ -299,6 +300,8 @@ int main()
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
         global.FRAME_TIME = duration.count();
+
+        Debug::EndTimer();
     }
 
     return EXIT_SUCCESS;
