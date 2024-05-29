@@ -116,9 +116,9 @@ float Interpolate(float a0, float a1, float w)
 
 float GetDensity(float x, float y, float z)
 {
-    x = (x) * 0.1f;
-    y = (y) * 0.1f;
-    z = (z) * 0.1f;
+    x = (x + offsetX) * 0.1;
+    y = (y + offsetY) * 0.1;
+    z = (z + offsetZ) * 0.1;
 
     // Grid cell corner coordinates
     int x0 = int(floor(x));
@@ -193,19 +193,19 @@ int TriTableGet(int cubeIndex, int i)
 void AddFace(vec3 v1, vec3 v2, vec3 v3, vec3 normal, int index)
 {
     // vertex 1
-    vertices[index] = v1.x;
-    vertices[index + 1] = v1.y;
-    vertices[index + 2] = v1.z;
+    vertices[index] = v1.x + offsetX;
+    vertices[index + 1] = v1.y + offsetY;
+    vertices[index + 2] = v1.z + offsetZ;
 
     // vertex 2
-    vertices[index + 3] = v2.x;
-    vertices[index + 4] = v2.y;
-    vertices[index + 5] = v2.z;
+    vertices[index + 3] = v2.x + offsetX;
+    vertices[index + 4] = v2.y + offsetY;
+    vertices[index + 5] = v2.z + offsetZ;
 
     // vertex 3
-    vertices[index + 6] = v3.x;
-    vertices[index + 7] = v3.y;
-    vertices[index + 8] = v3.z;
+    vertices[index + 6] = v3.x + offsetX;
+    vertices[index + 7] = v3.y + offsetY;
+    vertices[index + 8] = v3.z + offsetZ;
 
     // normal
     vertices[index + 9] = normal.x;

@@ -166,8 +166,8 @@ int main()
 
 
         // CHUNK COORDINATES THAT BOUND THE PLAYER
-        int renderDistanceH = 3;
-        int renderDistanceV = 3;
+        int renderDistanceH = 6;
+        int renderDistanceV = 6;
         int width = 24;
         int height = 24;
         int CenterChunkX = static_cast<int>(std::floor(camera.position.x / width) * width);

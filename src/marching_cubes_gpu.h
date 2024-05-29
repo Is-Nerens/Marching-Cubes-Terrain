@@ -60,10 +60,11 @@ public:
 
 	Model ConstructMeshGPU(int x, int y, int z)
 	{
+		Debug::StartTimer();
         glUseProgram(computeShaderProgram);
 
 		Model model;
-        std::vector<float> Vertices;
+        std::vector<float> Vertices = std::vector<float>((width + 1) * (width + 1) * (height + 1) * 48);
         std::vector<unsigned int> Indices;
 
 		VertexHasher::ResetHashTable();
@@ -91,12 +92,12 @@ public:
         // glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * VolumeData.size(), VolumeData.data(), GL_STATIC_READ);
         // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, vbo1);
 
-        // Bind buffer Vertices
-        glGenBuffers(1, &vbo2);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo2);
-        size_t vertexBufferSize = static_cast<size_t>((width + 1) * (width + 1) * (height + 1) * 48 * sizeof(float)); // for vertices
-        glBufferData(GL_SHADER_STORAGE_BUFFER, vertexBufferSize, nullptr, GL_DYNAMIC_DRAW); // Allocate space without initializing data
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vbo2);
+		// Bind buffer Vertices
+		glGenBuffers(1, &vbo2);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo2);
+		size_t vertexBufferSize = static_cast<size_t>((width + 1) * (width + 1) * (height + 1) * 48 * sizeof(float)); // for vertices
+		glBufferData(GL_SHADER_STORAGE_BUFFER, vertexBufferSize, Vertices.data(), GL_DYNAMIC_DRAW); // Allocate space without initializing data
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vbo2);
 
         // Bind buffer for TriTable
         glGenBuffers(1, &vbo3);
@@ -112,14 +113,14 @@ public:
         glFinish();
 
 
-        // copy vertex data from GPU to CPU
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo2); 
-        GLfloat* verticesDataPtr = nullptr;
-        verticesDataPtr = (GLfloat*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
-        if (verticesDataPtr) {
-            Vertices.assign(verticesDataPtr, verticesDataPtr + ((width + 1) * (width + 1) * (height + 1) * 48));
-            glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
-        }
+		// Copy vertex data from GPU to CPU
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo2); 
+		GLfloat* verticesDataPtr = nullptr;
+		verticesDataPtr = (GLfloat*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
+		if (verticesDataPtr) {
+			Vertices.assign(verticesDataPtr, verticesDataPtr + ((width + 1) * (width + 1) * (height + 1) * 48));
+			glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+		}
 
         // free GPU memory
         // glDeleteBuffers(1, &vbo1);
@@ -128,12 +129,11 @@ public:
 
 
         // set model vertices and indices
-        int vCount = (width + 1) * (width + 1) * (height + 1) * 48;
-		auto start = std::chrono::high_resolution_clock::now();
-        for (int i=0; i<vCount; i+=12)
+        for (int i=0; i<Vertices.size(); i+=12)
         {
             if (Vertices[i] != 0)
             {
+				//std::cout << Vertices[i] << std::endl;
                 // vertex 1
                 if (VertexHasher::GetVertexIndex(Vertices[i], Vertices[i+1], Vertices[i+2]) == -1)
                 {
@@ -187,12 +187,7 @@ public:
             }
         }
 
-
-		auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-        float meshGenTime = duration.count();
-		
-        std::cout << "mesh generation time: " <<  meshGenTime * 1000 << "ms" << std::endl;
+		Debug::EndTimer();
         std::cout << " " << std::endl;
         std::cout << " " << std::endl;
 		
@@ -397,7 +392,7 @@ private:
 	int xOffset = 0;
 	int yOffset = 0;
 	int zOffset = 0;
-    float densityThreshold = 0.01f;
+    float densityThreshold = 0.02f;
     unsigned int computeShaderProgram;
 
     std::vector<int> TriTableValues;
