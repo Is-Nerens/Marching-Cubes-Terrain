@@ -23,7 +23,7 @@ void main() {
     float fogDensity = 0.007; 
     float textureScale = 8.0;
     float ambientStrength = 0.2;
-    float normalMapStrength = 0.6;
+    float normalMapStrength = 0.5;
 
     // FINAL TEXTURE COLOUR
     vec4 texColorX = texture(u_albedo_texture, FragPosWorld.yz / textureScale);

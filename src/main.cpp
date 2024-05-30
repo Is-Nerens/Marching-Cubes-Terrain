@@ -96,6 +96,7 @@ int main()
 {
     sf::ContextSettings settings;
     settings.depthBits = 24;
+    settings.antialiasingLevel = 4;
     window.create(sf::VideoMode(global.WIDTH, global.HEIGHT), "SFML Window", sf::Style::Default, settings);
     window.setActive(true); 
     if (glewInit() != GLEW_OK) 
@@ -169,8 +170,8 @@ int main()
         // CHUNK COORDINATES THAT BOUND THE PLAYER
         int renderDistanceH = 8;
         int renderDistanceV = 5;
-        int width = 16;
-        int height = 16;
+        int width = 12;
+        int height = 12;
         int CenterChunkX = static_cast<int>(std::floor(camera.position.x / width) * width);
         int CenterChunkY = static_cast<int>(std::floor(camera.position.y / height) * height);
 	    int CenterChunkZ = static_cast<int>(std::floor(camera.position.z / width) * width);
