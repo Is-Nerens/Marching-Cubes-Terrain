@@ -65,13 +65,13 @@ public:
 
 
         // ALBEDO TEXTURE ////////////////////////
-        unsigned int texture0;
+        unsigned int texture1;
         std::string path1 = "textures/rock_1_albedo.jpg";
         unsigned char* localbuffer1 = stbi_load(path1.c_str(), &width, &height, &bpp, 4);
 
-        glGenTextures(1, &texture0);
+        glGenTextures(1, &texture1);
         glActiveTexture(GL_TEXTURE0 + 0);
-        glBindTexture(GL_TEXTURE_2D, texture0);
+        glBindTexture(GL_TEXTURE_2D, texture1);
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -84,11 +84,11 @@ public:
         
 
         // NORMAL MAP TEXTURE /////////////////////
-        unsigned int texture1;
+        unsigned int texture2;
         std::string path2 = "textures/rock_1_normal.jpg";
         unsigned char* localbuffer2 = stbi_load(path2.c_str(), &width, &height, &bpp, 4);
 
-        glGenTextures(1, &texture1);
+        glGenTextures(1, &texture2);
         glActiveTexture(GL_TEXTURE0 + 1);
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -99,7 +99,30 @@ public:
         stbi_image_free(localbuffer2);
 
         // FOR SOME REASON IT ONLY LETS ME USE TWO TEXTURES WHEN THIS CODE BELOW IS HERE RATHER THAN ABOVE LIKE IN THE ALBEDO
-        glBindTexture(GL_TEXTURE_2D, texture1);
+        glBindTexture(GL_TEXTURE_2D, texture2);
+
+
+
+
+
+
+        // GRASS TEXTURE /////////////////////
+        // unsigned int texture3;
+        // std::string path3 = "textures/grass_1_albedo.jpg";
+        // unsigned char* localbuffer3 = stbi_load(path3.c_str(), &width, &height, &bpp, 4);
+
+        // glGenTextures(1, &texture3);
+        // glActiveTexture(GL_TEXTURE0 + 2);
+
+        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, localbuffer3);
+        // stbi_image_free(localbuffer3);
+
+        // // FOR SOME REASON IT ONLY LETS ME USE TWO TEXTURES WHEN THIS CODE BELOW IS HERE RATHER THAN ABOVE LIKE IN THE ALBEDO
+        // glBindTexture(GL_TEXTURE_2D, texture3);
 
 
 
@@ -107,6 +130,7 @@ public:
 
         glUniform1i(glGetUniformLocation(shaderProgram, "u_albedo_texture"), 0); 
         glUniform1i(glGetUniformLocation(shaderProgram, "u_normal_texture"), 1); 
+        // glUniform1i(glGetUniformLocation(shaderProgram, "u_grass_texture"), 2); 
 
 
 
@@ -145,7 +169,7 @@ public:
         for (int i = 0; i < models.size(); ++i)
         {   
             // transform uniforms
-            glm::mat4 modelMat = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+            glm::mat4 modelMat = glm::translate(glm::mat4(1.0f), models[i].position);
             glm::mat4 mvp = camera.GetProjectionViewMatrix() * modelMat;
             glm::vec3 cameraPos = camera.position; 
 

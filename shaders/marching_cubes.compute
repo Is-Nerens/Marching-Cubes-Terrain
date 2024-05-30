@@ -71,7 +71,8 @@ vec3 CalculateNormal(vec3 v1, vec3 v2, vec3 v3)
 
 
 // PERLIN NOISE ON THE GPU
-vec3 RandomGradient(int ix, int iy, int iz) {
+vec3 RandomGradient3D(int ix, int iy, int iz) 
+{
     const uint w = 32u;
     const uint s = w / 2;
     
@@ -96,17 +97,44 @@ vec3 RandomGradient(int ix, int iy, int iz) {
     v.x = sin(randomX) * cos(randomZ);
     v.y = cos(randomX) * cos(randomZ);
     v.z = sin(randomZ);
-
     return v;
 }
 
-float DotGridGradient(int ix, int iy, int iz, float x, float y, float z)
+vec2 RandomGradient2D(int ix, int iy)
 {
-    vec3 gradient = RandomGradient(ix, iy, iz);
+    const uint w = 32u;
+    const uint s = w / 2;
+    
+    uint a = uint(ix), b = uint(iy);
+    a *= 3284157443U;
+    b ^= a << s | a >> (w - s);
+    b *= 1911520717U;
+    a ^= b << s | b >> (w - s);
+    a *= 2048419325U;
+    float random = float(a) * (3.14159265 / float(0xFFFFFFFFU)); // in [0, 2*Pi]
+
+    // Create the vector from the angles
+    vec2 v;
+    v.x = sin(random);
+    v.y = cos(random);
+    return v;
+}
+
+float DotGridGradient3D(int ix, int iy, int iz, float x, float y, float z)
+{
+    vec3 gradient = RandomGradient3D(ix, iy, iz);
     float dx = x - float(ix);
     float dy = y - float(iy);
     float dz = z - float(iz);
     return dot(gradient, vec3(dx, dy, dz));
+}
+
+float DotGridGradient2D(int ix, int iy, float x, float y)
+{
+    vec2 gradient = RandomGradient2D(ix, iy);
+    float dx = x - float(ix);
+    float dy = y - float(iy);
+    return dot(gradient, vec2(dx, dy));
 }
 
 float Interpolate(float a0, float a1, float w)
@@ -130,16 +158,16 @@ float Perlin3D(float x, float y, float z)
     float sz = z - float(z0);
 
     // Bottom corners
-    float n0 = DotGridGradient(x0, y0, z0, x, y, z);
-    float n1 = DotGridGradient(x1, y0, z0, x, y, z);
-    float n2 = DotGridGradient(x0, y1, z0, x, y, z);
-    float n3 = DotGridGradient(x1, y1, z0, x, y, z);
+    float n0 = DotGridGradient3D(x0, y0, z0, x, y, z);
+    float n1 = DotGridGradient3D(x1, y0, z0, x, y, z);
+    float n2 = DotGridGradient3D(x0, y1, z0, x, y, z);
+    float n3 = DotGridGradient3D(x1, y1, z0, x, y, z);
 
     // Top corners
-    float n4 = DotGridGradient(x0, y0, z1, x, y, z);
-    float n5 = DotGridGradient(x1, y0, z1, x, y, z);
-    float n6 = DotGridGradient(x0, y1, z1, x, y, z);
-    float n7 = DotGridGradient(x1, y1, z1, x, y, z);
+    float n4 = DotGridGradient3D(x0, y0, z1, x, y, z);
+    float n5 = DotGridGradient3D(x1, y0, z1, x, y, z);
+    float n6 = DotGridGradient3D(x0, y1, z1, x, y, z);
+    float n7 = DotGridGradient3D(x1, y1, z1, x, y, z);
 
     // Trilinear interpolation
     float ix0 = Interpolate(n0, n1, sx);
@@ -151,16 +179,60 @@ float Perlin3D(float x, float y, float z)
     float iy1 = Interpolate(ix2, ix3, sy);
 
     float interpolatedValue = Interpolate(iy0, iy1, sz);
+    return (interpolatedValue + 1.0) / 2.0;
+}
+
+float Perlin2D(float x, float y)
+{
+    // Grid corner coordinates
+    int x0 = int(floor(x));
+    int y0 = int(floor(y));
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+
+    // Interpolation weights
+    float sx = x - float(x0);
+    float sy = y - float(y0);
+
+    // Corners
+    float n0 = DotGridGradient2D(x0, y0, x, y);
+    float n1 = DotGridGradient2D(x1, y0, x, y);
+    float n2 = DotGridGradient2D(x0, y1, x, y);
+    float n3 = DotGridGradient2D(x1, y1, x, y);
+
+    // Interpolation
+    float ix0 = Interpolate(n0, n1, sx);
+    float ix1 = Interpolate(n2, n3, sx);
+
+    float interpolatedValue = Interpolate(ix0, ix1, sy);
     return interpolatedValue;
 }
 
 float GetDensity(float x, float y, float z)
 {
-    x = (x + offsetX) * 0.07;
-    y = (y + offsetY) * 0.07;
-    z = (z + offsetZ) * 0.07;
+    float yOriginal = y + offsetY;
 
-    return Perlin3D(x, y, z) + Perlin3D(x*2, y*2, z*2) * 0.3 + Perlin3D(x*4, y*4, z*4) * 0.12 + Perlin3D(x*8, y*8, z*8) * 0.05;
+
+    float surfaceHeight = Perlin2D((x + offsetX) * 0.02, (z + offsetZ) * 0.02) * 20 + 100;
+
+    if (yOriginal <  surfaceHeight)
+    {
+        x = (x + offsetX) * 0.07;
+        y = (y + offsetY) * 0.07;
+        z = (z + offsetZ) * 0.07;
+        return Perlin3D(x, y, z) + Perlin3D(x*2, y*2, z*2) * 0.3 + Perlin3D(x*4, y*4, z*4) * 0.12 + Perlin3D(x*8, y*8, z*8) * 0.05;
+    }
+    // // smooth out jagged surface
+    // else if (abs(yOriginal - surfaceHeight) < 1.0)
+    // {
+    //     float diff = abs(yOriginal - surfaceHeight);
+    //     float density3D = Perlin3D(x, y, z) + Perlin3D(x*2, y*2, z*2) * 0.3 + Perlin3D(x*4, y*4, z*4) * 0.12 + Perlin3D(x*8, y*8, z*8) * 0.05;
+    //     return Interpolate(0, density3D, diff);
+    // }
+    else
+    {
+        return 0.0;
+    }
 }
 // float GetDensity(float xF, float yF, float zF)
 // {
@@ -198,19 +270,19 @@ int TriTableGet(int cubeIndex, int i)
 void AddFace(vec3 v1, vec3 v2, vec3 v3, vec3 normal, int index)
 {
     // vertex 1
-    vertices[index] = v1.x + offsetX;
-    vertices[index + 1] = v1.y + offsetY;
-    vertices[index + 2] = v1.z + offsetZ;
+    vertices[index] = v1.x;
+    vertices[index + 1] = v1.y;
+    vertices[index + 2] = v1.z;
 
     // vertex 2
-    vertices[index + 3] = v2.x + offsetX;
-    vertices[index + 4] = v2.y + offsetY;
-    vertices[index + 5] = v2.z + offsetZ;
+    vertices[index + 3] = v2.x;
+    vertices[index + 4] = v2.y;
+    vertices[index + 5] = v2.z;
 
     // vertex 3
-    vertices[index + 6] = v3.x + offsetX;
-    vertices[index + 7] = v3.y + offsetY;
-    vertices[index + 8] = v3.z + offsetZ;
+    vertices[index + 6] = v3.x;
+    vertices[index + 7] = v3.y;
+    vertices[index + 8] = v3.z;
 
     // normal
     vertices[index + 9] = normal.x;

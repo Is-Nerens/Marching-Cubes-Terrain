@@ -188,6 +188,7 @@ public:
         }
 
 		// Debug::EndTimer();
+		model.position = {xOffset, yOffset, zOffset};
         return model;
     }
 
@@ -389,7 +390,7 @@ private:
 	int xOffset = 0;
 	int yOffset = 0;
 	int zOffset = 0;
-    float densityThreshold = 0.02f;
+    float densityThreshold = 0.7f;
     unsigned int computeShaderProgram;
 
     std::vector<int> TriTableValues;

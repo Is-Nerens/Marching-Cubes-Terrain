@@ -10,8 +10,9 @@ uniform vec3 u_CameraPos;
 uniform vec4 u_Colour;
 uniform sampler2D u_albedo_texture;
 uniform sampler2D u_normal_texture;
-uniform sampler2D u_height_texture;
-uniform sampler2D u_roughness_texture;
+// uniform sampler2D u_grass_texture;
+// uniform sampler2D u_height_texture;
+// uniform sampler2D u_roughness_texture;
 
 // PIXEL OUTPUT COLOUR
 layout (location = 0) out vec4 FragColour;
@@ -21,25 +22,49 @@ void main() {
     vec3 skyColor = vec3(0.53, 0.81, 0.92);
     vec3 fogColour = vec3(0.53, 0.81, 0.92);
     float fogDensity = 0.007; 
-    float textureScale = 8.0;
+    float stoneTextureScale = 8.0;
+    float grassTextureScale = 6.0;
     float ambientStrength = 0.2;
-    float normalMapStrength = 0.5;
+    float normalMapStrength = 0.4;
 
-    // FINAL TEXTURE COLOUR
-    vec4 texColorX = texture(u_albedo_texture, FragPosWorld.yz / textureScale);
-    vec4 texColorY = texture(u_albedo_texture, FragPosWorld.xz / textureScale);
-    vec4 texColorZ = texture(u_albedo_texture, FragPosWorld.xy / textureScale);
+
 
     // TRIPLANAR MAPPING - BLENDING BETWEEN A TEXTURE FROM 3 SIDES BASED ON THE FRAGMENT NORMAL
+    vec2 uvX = FragPosWorld.yz / stoneTextureScale; // x facing plane
+    vec2 uvY = FragPosWorld.xz / stoneTextureScale; // y facing plane
+    vec2 uvZ = FragPosWorld.xy / stoneTextureScale; // z facing plane
     vec3 blendWeights = abs(v_Normal);
     blendWeights = blendWeights / (blendWeights.x + blendWeights.y + blendWeights.z); // Normalize weights
+
+
+
+    // DETERMINE SURFACE TEXTURE COLOUR /////////////////////////////////
+    // Determine steepness based on the dot product with the up vector
+    float steepness = dot(normalize(v_Normal), vec3(0.0, 1.0, 0.0));
+    float steepnessThreshold = 0.005; // Adjust this value as needed
+    float blendFactor = smoothstep(steepnessThreshold - 0.1, steepnessThreshold, steepness);
+    if (FragPosWorld.y < 70) { blendFactor = 1; }
+
+    vec4 albedoColorX = texture(u_albedo_texture, uvX);
+    vec4 albedoColorY = texture(u_albedo_texture, uvY);
+    vec4 albedoColorZ = texture(u_albedo_texture, uvZ);
+
+    vec4 grassColorX = texture(u_normal_texture, uvX);
+    vec4 grassColorY = texture(u_normal_texture, uvY);
+    vec4 grassColorZ = texture(u_normal_texture, uvZ);
+
+    // FINAL TEXTURE COLOUR
+    vec4 texColorX = mix(grassColorX, albedoColorX, blendFactor);
+    vec4 texColorY = mix(grassColorY, albedoColorY, blendFactor);
+    vec4 texColorZ = mix(grassColorZ, albedoColorZ, blendFactor);
     vec3 textureColor = texColorX.rgb * blendWeights.x + texColorY.rgb * blendWeights.y + texColorZ.rgb * blendWeights.z;
 
-    // APPLY NORMAL MAP
-    vec2 uvX = FragPosWorld.yz / textureScale; // x facing plane
-    vec2 uvY = FragPosWorld.xz / textureScale; // y facing plane
-    vec2 uvZ = FragPosWorld.xy / textureScale; // z facing plane
 
+
+
+
+
+    // APPLY NORMAL MAP
     vec3 normalMapX = texture(u_normal_texture, uvX).rgb * 2.0 - 1.0;
     vec3 normalMapY = texture(u_normal_texture, uvY).rgb * 2.0 - 1.0;
     vec3 normalMapZ = texture(u_normal_texture, uvZ).rgb * 2.0 - 1.0;
