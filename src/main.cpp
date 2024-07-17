@@ -1,11 +1,11 @@
 #include "window.h"
 #include "Input.h"
 #include "render_pipeline.h"
-#include "model.h"
 #include "camera.h"
 #include "utils.h"
 #include "filesystem.h"
-#include "marching_cubes_gpu.h"
+#include "terrain.h"
+#include "raycast.h"
 #include <SFML/Graphics.hpp>
 #include "vendor/glm/glm.hpp"
 #include <GL/glew.h>
@@ -26,14 +26,6 @@ sf::RenderWindow window;
 InputSystem Input{&window};
 RenderPipeline renderPipeline;
 Camera camera;
-
-struct Chunk
-{
-    int x;
-    int y;
-    int z;
-};
-
 
 
 void ProcessInput() 
@@ -110,17 +102,12 @@ int main()
     Init();
 
 
-    TerrainGPU terrainGPU;
-    std::vector<Model> models;
-    std::vector<Chunk> chunks;
-    Model model;
-
-
     float moveSpeed = 10.0f;
     float lookSensitivity = 0.16f;
-    glm::vec2 camAcceleration = glm::vec2(1000.0f, 1000.0f);
+    glm::vec2 camAcceleration = glm::vec2(100.0f, 100.0f);
 
 
+    TerrainSystem terrainSystem;
 
     // MAIN UPDATE LOOP
     while (window.isOpen()) {
@@ -156,117 +143,37 @@ int main()
         if (Input.GetKey(KeyCode::Q)) camera.position -= moveSpeed * glm::vec3(0.0f, 1.0f, 0.0f) * global.FRAME_TIME;
 
         // // BASIC CAMERA LOOK
-        if (Input.MouseHidden())
-        {
-            glm::vec2 mouseDelta = glm::vec2{Input.MouseDeltaX(), Input.MouseDeltaY()};
-            glm::vec2 targetVelocity = mouseDelta * lookSensitivity;
-            glm::vec2 camVelocity;
-
-            camVelocity.y = MoveTowards(camVelocity.x, targetVelocity.x, camAcceleration.x * global.FRAME_TIME);
-            camVelocity.x = MoveTowards(camVelocity.y, targetVelocity.y, camAcceleration.y * global.FRAME_TIME);
-
-            camera.rotation.y += camVelocity.y;
-            camera.rotation.x += camVelocity.x;
-
-            // Clamp the x rotation to avoid flipping the camera
-            camera.rotation.x = std::max(-89.0f, std::min(89.0f, camera.rotation.x));
-        }
-        camera.UpdateProjectionView();
-        
-        // // BASIC CAMERA LOOK
         // if (Input.MouseHidden())
         // {
-        //     float dX = Input.MouseDeltaX() * lookSensitivity;
-        //     float dY = Input.MouseDeltaY() * lookSensitivity;
+        //     glm::vec2 mouseDelta = glm::vec2{Input.MouseDeltaX(), Input.MouseDeltaY()};
+        //     glm::vec2 targetVelocity = mouseDelta * lookSensitivity;
+        //     glm::vec2 camVelocity;
 
-        //     camera.rotation.y += dX;
-        //     camera.rotation.x += dY;
+        //     camVelocity.y = MoveTowards(camVelocity.x, targetVelocity.x, camAcceleration.x * global.FRAME_TIME);
+        //     camVelocity.x = MoveTowards(camVelocity.y, targetVelocity.y, camAcceleration.y * global.FRAME_TIME);
+
+        //     camera.rotation.y += camVelocity.y;
+        //     camera.rotation.x += camVelocity.x;
+
+        //     // Clamp the x rotation to avoid flipping the camera
         //     camera.rotation.x = std::max(-89.0f, std::min(89.0f, camera.rotation.x));
         // }
-        // camera.UpdateProjectionView(); 
-
-
-
-        // CHUNK COORDINATES THAT BOUND THE PLAYER
-        int renderDistanceH = 8;
-        int renderDistanceV = 6;
-        int width = 12;
-        int height = 12;
-        int CenterChunkX = static_cast<int>(std::floor(camera.position.x / width) * width);
-        int CenterChunkY = static_cast<int>(std::floor(camera.position.y / height) * height);
-	    int CenterChunkZ = static_cast<int>(std::floor(camera.position.z / width) * width);
-	    int offsetH = (renderDistanceH - 1) * width / 2;
-	    int offsetV = (renderDistanceV - 1) * height / 2;
-
-
-        // GENERATE 8 CHUNKS PER FRAME
-        bool generatedChunkThisFrame = false;
-        int chunksGenerated = 0;
-
-        for (int y = 0; y < renderDistanceV; ++y) {
-            for (int x = 0; x < renderDistanceH; ++x) {
-                for (int z = 0; z < renderDistanceH; ++z) {
-                    int worldX = x * width - offsetH + CenterChunkX;
-                    int worldY = y * height - offsetV + CenterChunkY;
-                    int worldZ = z * width - offsetH + CenterChunkZ;
-
-                    // Stop if chunk was generated this frame
-                    //if (generatedChunkThisFrame) break;
-                    if (chunksGenerated >= 4) break;
-
-                    bool chunkPresent = false;
-
-                    // Check if there is a chunk at the position
-                    for (int i = 0; i < chunks.size(); ++i) {
-
-                        // 1 - check if chunk exists at current iteration position
-                        //if (chunks[i].x == worldX && chunks[i].y == worldY && chunks[i].z == worldZ) {
-                        if (chunks[i].x == worldX && chunks[i].y == worldY && chunks[i].z == worldZ) {
-                            chunkPresent = true;
-                            break;
-                        }
-                    }
-
-
-                    // No chunk present? Create a new one
-                    if (!chunkPresent){
-                        model = terrainGPU.ConstructMeshGPU(worldX, worldY, worldZ);
-                        models.push_back(model);
-                        Chunk newChunk;
-                        newChunk.x = worldX;
-                        newChunk.y = worldY;
-                        newChunk.z = worldZ;
-                        chunks.push_back(newChunk);
-                        generatedChunkThisFrame = true;
-                        chunksGenerated += 1;
-                    }
-                }
-            }
-        }
-
-
-        // Remove chunks
-        for (int i=0; i<chunksGenerated; ++i)
+        // camera.UpdateProjectionView();
+        
+        // // BASIC CAMERA LOOK
+        if (Input.MouseHidden())
         {
-            for (int i=0; i<chunks.size(); ++i)
-            {
-                
-                int chunkDist = std::max(std::max(std::abs(chunks[i].x - CenterChunkX), std::abs(chunks[i].z - CenterChunkZ)), std::abs(chunks[i].y - CenterChunkY));
-                if (chunkDist > std::floor((renderDistanceH * width) / 2.0)){
-                    chunks.erase(chunks.begin() + i);
-			        models.erase(models.begin() + i);
-                    break;
-                } 
-            }
+            float dX = Input.MouseDeltaX() * lookSensitivity;
+            float dY = Input.MouseDeltaY() * lookSensitivity;
+
+            camera.rotation.y += dX;
+            camera.rotation.x += dY;
+            camera.rotation.x = std::max(-89.0f, std::min(89.0f, camera.rotation.x));
         }
+        camera.UpdateProjectionView(); 
 
 
-
-
-
-
-
-
+        terrainSystem.Update(camera.position.x , camera.position.y, camera.position.z);
 
 
 
@@ -276,22 +183,16 @@ int main()
 
 
         // // test terrain raycast
-        // if (Input.MouseDown())
-        // {
-        //     RayHit hit = terrainGPU.Raycast(camera.position, camera.Forward());
-        //     if (hit.hit) 
-        //     {
-        //         std::cout << "Fired ray, hit position: " << hit.position.x << " " <<  hit.position.y << " " << hit.position.z << std::endl;
-        //         glm::vec3 p = hit.position - camera.Forward() * 0.5f;
-
-        //         terrainGPU.AddDensity(hit.position, -0.02f);
-
-        //         // REGENERATE MODEL
-        //         model = terrainGPU.ConstructMeshGPU(10, 0, 0);
-        //         models.clear();
-        //         models.push_back(model);
-        //     }
-        // }
+        if (Input.MouseDown())
+        {
+            RayHit hit = terrainSystem.Raycast(camera.position, camera.Forward());
+            if (hit.hit) 
+            {
+                terrainSystem.AddDensity(hit.position, 2.0f, 0.1f);
+                // std::cout << "Fired ray, hit position: " << hit.position.x << " " <<  hit.position.y << " " << hit.position.z << std::endl;
+                // std::cout << "camera pos: " << camera.position.x << " " <<  camera.position.y << " " << camera.position.z << std::endl;
+            }
+        }
 
         // if (Input.GetKey(KeyCode::Space))
         // {
@@ -315,7 +216,7 @@ int main()
 
 
         // RENDER PIPELINE
-        renderPipeline.Render(models, camera);
+        renderPipeline.Render(terrainSystem.models, camera);
 
         // DISPLAY RENDERED FRAME
         window.display();
@@ -329,7 +230,7 @@ int main()
         std::string title = ss.str();
         window.setTitle(title);
 
-        Debug::EndTimer();
+        // Debug::EndTimer();
     }
 
     return EXIT_SUCCESS;

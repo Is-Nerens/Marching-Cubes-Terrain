@@ -8,7 +8,7 @@ public:
     Model() {}
     ~Model() {}
 
-    void AddVertex(float x, float y, float z, float nx, float ny, float nz) //void AddVertex(float x, float y, float z, float nx, float ny, float nz, float u, float v)
+    void AddVertex(float x, float y, float z, float nx, float ny, float nz) 
     {
         vertices.push_back(x);
         vertices.push_back(y);

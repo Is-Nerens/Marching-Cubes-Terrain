@@ -4,22 +4,20 @@ layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 // Uniforms
 uniform float densityThreshold;
-uniform int width;
-uniform int height;
 uniform int offsetX;
 uniform int offsetY;
 uniform int offsetZ;
+uniform int densityCount;
 
-// layout(binding = 0) readonly buffer VolumeDataBuffer {
-//     float VolumeData[];
-// };
-layout(binding = 1) writeonly buffer VertexBuffer {
+layout(binding = 0) writeonly buffer VertexBuffer {
     float vertices[];
 };
-layout(binding = 2) readonly buffer TriTableBuffer {
+layout(binding = 1) readonly buffer TriTableBuffer {
     int TriTable[];
 };
-
+layout(binding = 2) readonly buffer EditDensities {
+    int editDensities[];
+};
 
 // cornerIndexAFromEdge array
 const int cornerIndexAFromEdge[12] = int[](0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3);
@@ -57,7 +55,10 @@ vec3 CalculateNormal(vec3 v1, vec3 v2, vec3 v3)
     return normalize(unnormalized);
 }
 
-
+int GetDensityIndex(int x, int y, int z)
+{
+    return x + (y * int(gl_NumWorkGroups.x)) + (z * int(gl_NumWorkGroups.x) * int(gl_NumWorkGroups.y));
+}
 
 
 
@@ -208,41 +209,83 @@ float Perlin2D(float x, float y)
     return interpolatedValue;
 }
 
+
+
+
+
+
+
+
+
+
+float GetSurfaceHeight(float x, float z)
+{
+    return (Perlin2D((x + offsetX) * 0.015, (z + offsetZ) * 0.015) * 20) + 
+    (Perlin2D((x + offsetX) * 0.03, (z + offsetZ) * 0.03) * 10) + 
+    (Perlin2D((x + offsetX) * 0.06, (z + offsetZ) * 0.06) * 5) + 
+    (Perlin2D((x + offsetX) * 0.12, (z + offsetZ) * 0.12) * 2.5);
+}
+
+float GetCaveDensity(float x, float y, float z)
+{
+    float sx = (x + offsetX) * 0.07;
+    float sy = (y + offsetY) * 0.07;
+    float sz = (z + offsetZ) * 0.07;
+    return Perlin3D(sx, sy, sz) 
+    + Perlin3D(sx * 2, sy * 2, sz * 2) * 0.5 
+    + Perlin3D(sx * 4, sy * 4, sz * 4) * 0.25;
+}
+
 float GetDensity(float x, float y, float z)
 {
-    float yOriginal = y + offsetY;
-    float surfaceHeight = 100 + (Perlin2D((x + offsetX) * 0.015, (z + offsetZ) * 0.015) * 20 + Perlin2D((x + offsetX) * 0.03, (z + offsetZ) * 0.03) * 10);
+    float pointHeight = y + offsetY;
 
-    if (yOriginal <  surfaceHeight - 1)
+    // Calculate the density based on the height difference for the surface
+    float surfaceHeight = GetSurfaceHeight(x, z) * 2;
+    float surfaceDensity = surfaceHeight - pointHeight;
+    surfaceDensity = clamp(surfaceDensity, 0.0, 1.0);
+
+    float caveDensity = GetCaveDensity(x, y, z) * 0.9; 
+
+    // BLEND BETWEEN CAVE DENSITY AND SURFACE DENSITY
+    float blendTerm = clamp(pointHeight / 5, 0, 1);
+    float density = mix(caveDensity, surfaceDensity, blendTerm);
+
+    // APPLY EDIT DENSITY AND RETURN
+    float editDensity = 0.0;
+    if (densityCount != 1) 
     {
-        x = (x + offsetX) * 0.07;
-        y = (y + offsetY) * 0.07;
-        z = (z + offsetZ) * 0.07;
-        return Perlin3D(x, y, z) + Perlin3D(x*2, y*2, z*2) * 0.3 + Perlin3D(x*4, y*4, z*4) * 0.12 + Perlin3D(x*8, y*8, z*8) * 0.05;
+        editDensity = editDensities[GetDensityIndex(int(x), int(y), int(z))];
     }
-    // smooth out jagged surface
-    else if (yOriginal <= surfaceHeight && yOriginal > surfaceHeight -1.0)
-    {
-        x = (x + offsetX) * 0.07;
-        y = (y + offsetY) * 0.07;
-        z = (z + offsetZ) * 0.07;
-        float density = Perlin3D(x, y, z) + Perlin3D(x*2, y*2, z*2) * 0.3 + Perlin3D(x*4, y*4, z*4) * 0.12 + Perlin3D(x*8, y*8, z*8) * 0.05;
-        float transition = surfaceHeight - yOriginal;
-        return density * transition;
-    }
-    else
-    {
-        return 0.0;
-    }
+
+    return density + editDensity;
 }
-// float GetDensity(float xF, float yF, float zF)
+
+// float GetDensity(float x, float y, float z)
 // {
-//     int x = int(floor(xF + 0.5));
-//     int y = int(floor(yF + 0.5));
-//     int z = int(floor(zF + 0.5));
-//     int index = z + (width+1) * (x + (height+1) * y);
-//     return VolumeData[index];
+//     float pointHeight = y + offsetY;
+
+//     // Calculate the density based on the height difference for the surface
+//     float surfaceHeight = GetSurfaceHeight(x, z);
+//     float surfaceDensity = surfaceHeight - pointHeight;
+//     surfaceDensity = clamp(surfaceDensity, 0.0, 1.0);
+
+//     float caveDensity = GetCaveDensity(x, y, z) * 0.9; 
+
+//     // BLEND BETWEEN CAVE DENSITY AND SURFACE DENSITY
+//     float blendTerm = clamp(surfaceHeight / 5, 0, 1);
+//     float density = mix(caveDensity, surfaceDensity, blendTerm);
+
+//     // APPLY EDIT DENSITY AND RETURN
+//     float editDensity = 0.0;
+//     if (densityCount != 1) 
+//     {
+//         editDensity = editDensities[GetDensityIndex(int(x), int(y), int(z))];
+//     }
+
+//     return density + editDensity;
 // }
+
 
 
 
