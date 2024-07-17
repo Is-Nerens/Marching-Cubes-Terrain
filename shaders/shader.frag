@@ -41,17 +41,20 @@ void main() {
     // DETERMINE SURFACE TEXTURE COLOUR /////////////////////////////////
     // Determine steepness based on the dot product with the up vector
     float steepness = dot(normalize(v_Normal), vec3(0.0, 1.0, 0.0));
-    float steepnessThreshold = 0.005; // Adjust this value as needed
-    float blendFactor = smoothstep(steepnessThreshold - 0.1, steepnessThreshold, steepness);
+    float steepnessThreshold = 0.1; // Adjust this value as needed
+    float blendFactor = smoothstep(steepnessThreshold - 0.2, steepnessThreshold, steepness);
     if (FragPosWorld.y < 70) { blendFactor = 1; }
 
     vec4 albedoColorX = texture(u_albedo_texture, uvX);
     vec4 albedoColorY = texture(u_albedo_texture, uvY);
     vec4 albedoColorZ = texture(u_albedo_texture, uvZ);
 
-    vec4 grassColorX = texture(u_normal_texture, uvX);
-    vec4 grassColorY = texture(u_normal_texture, uvY);
-    vec4 grassColorZ = texture(u_normal_texture, uvZ);
+    // vec4 grassColorX = texture(u_normal_texture, uvX);
+    // vec4 grassColorY = texture(u_normal_texture, uvY);
+    // vec4 grassColorZ = texture(u_normal_texture, uvZ);
+    vec4 grassColorX = vec4(0.4, 0.7, 0.2, 1.0);
+    vec4 grassColorY = vec4(0.4, 0.7, 0.2, 1.0);
+    vec4 grassColorZ = vec4(0.4, 0.7, 0.2, 1.0);
 
     // FINAL TEXTURE COLOUR
     vec4 texColorX = mix(grassColorX, albedoColorX, blendFactor);

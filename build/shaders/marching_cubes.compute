@@ -211,24 +211,25 @@ float Perlin2D(float x, float y)
 float GetDensity(float x, float y, float z)
 {
     float yOriginal = y + offsetY;
+    float surfaceHeight = 100 + (Perlin2D((x + offsetX) * 0.015, (z + offsetZ) * 0.015) * 20 + Perlin2D((x + offsetX) * 0.03, (z + offsetZ) * 0.03) * 10);
 
-
-    float surfaceHeight = Perlin2D((x + offsetX) * 0.02, (z + offsetZ) * 0.02) * 20 + 100;
-
-    if (yOriginal <  surfaceHeight)
+    if (yOriginal <  surfaceHeight - 1)
     {
         x = (x + offsetX) * 0.07;
         y = (y + offsetY) * 0.07;
         z = (z + offsetZ) * 0.07;
         return Perlin3D(x, y, z) + Perlin3D(x*2, y*2, z*2) * 0.3 + Perlin3D(x*4, y*4, z*4) * 0.12 + Perlin3D(x*8, y*8, z*8) * 0.05;
     }
-    // // smooth out jagged surface
-    // else if (abs(yOriginal - surfaceHeight) < 1.0)
-    // {
-    //     float diff = abs(yOriginal - surfaceHeight);
-    //     float density3D = Perlin3D(x, y, z) + Perlin3D(x*2, y*2, z*2) * 0.3 + Perlin3D(x*4, y*4, z*4) * 0.12 + Perlin3D(x*8, y*8, z*8) * 0.05;
-    //     return Interpolate(0, density3D, diff);
-    // }
+    // smooth out jagged surface
+    else if (yOriginal <= surfaceHeight && yOriginal > surfaceHeight -1.0)
+    {
+        x = (x + offsetX) * 0.07;
+        y = (y + offsetY) * 0.07;
+        z = (z + offsetZ) * 0.07;
+        float density = Perlin3D(x, y, z) + Perlin3D(x*2, y*2, z*2) * 0.3 + Perlin3D(x*4, y*4, z*4) * 0.12 + Perlin3D(x*8, y*8, z*8) * 0.05;
+        float transition = surfaceHeight - yOriginal;
+        return density * transition;
+    }
     else
     {
         return 0.0;

@@ -3,9 +3,11 @@
 #include "render_pipeline.h"
 #include "model.h"
 #include "camera.h"
+#include "utils.h"
 #include "filesystem.h"
 #include "marching_cubes_gpu.h"
 #include <SFML/Graphics.hpp>
+#include "vendor/glm/glm.hpp"
 #include <GL/glew.h>
 #include <iostream>
 #include <chrono>
@@ -99,8 +101,8 @@ int main()
     settings.antialiasingLevel = 4;
     window.create(sf::VideoMode(global.WIDTH, global.HEIGHT), "SFML Window", sf::Style::Default, settings);
     window.setActive(true); 
-    if (glewInit() != GLEW_OK) 
-    {
+    // window.setVerticalSyncEnabled(true);
+    if (glewInit() != GLEW_OK) {
         std::cout << "ERROR: Failed to initialize GLEW" << std::endl;
         return EXIT_FAILURE;
     }
@@ -115,8 +117,8 @@ int main()
 
 
     float moveSpeed = 10.0f;
-    float lookSensitivity = 15.0f;
-
+    float lookSensitivity = 0.16f;
+    glm::vec2 camAcceleration = glm::vec2(1000.0f, 1000.0f);
 
 
 
@@ -153,23 +155,41 @@ int main()
         if (Input.GetKey(KeyCode::E)) camera.position += moveSpeed * glm::vec3(0.0f, 1.0f, 0.0f) * global.FRAME_TIME;
         if (Input.GetKey(KeyCode::Q)) camera.position -= moveSpeed * glm::vec3(0.0f, 1.0f, 0.0f) * global.FRAME_TIME;
 
-        // BASIC CAMERA LOOK
+        // // BASIC CAMERA LOOK
         if (Input.MouseHidden())
         {
-            float dX = Input.MouseDeltaX() * lookSensitivity * global.FRAME_TIME;
-            float dY = Input.MouseDeltaY() * lookSensitivity * global.FRAME_TIME;
+            glm::vec2 mouseDelta = glm::vec2{Input.MouseDeltaX(), Input.MouseDeltaY()};
+            glm::vec2 targetVelocity = mouseDelta * lookSensitivity;
+            glm::vec2 camVelocity;
 
-            camera.rotation.y += dX;
-            camera.rotation.x += dY;
+            camVelocity.y = MoveTowards(camVelocity.x, targetVelocity.x, camAcceleration.x * global.FRAME_TIME);
+            camVelocity.x = MoveTowards(camVelocity.y, targetVelocity.y, camAcceleration.y * global.FRAME_TIME);
+
+            camera.rotation.y += camVelocity.y;
+            camera.rotation.x += camVelocity.x;
+
+            // Clamp the x rotation to avoid flipping the camera
             camera.rotation.x = std::max(-89.0f, std::min(89.0f, camera.rotation.x));
         }
-        camera.UpdateProjectionView(); 
+        camera.UpdateProjectionView();
+        
+        // // BASIC CAMERA LOOK
+        // if (Input.MouseHidden())
+        // {
+        //     float dX = Input.MouseDeltaX() * lookSensitivity;
+        //     float dY = Input.MouseDeltaY() * lookSensitivity;
+
+        //     camera.rotation.y += dX;
+        //     camera.rotation.x += dY;
+        //     camera.rotation.x = std::max(-89.0f, std::min(89.0f, camera.rotation.x));
+        // }
+        // camera.UpdateProjectionView(); 
 
 
 
         // CHUNK COORDINATES THAT BOUND THE PLAYER
-        int renderDistanceH = 14;
-        int renderDistanceV = 4;
+        int renderDistanceH = 8;
+        int renderDistanceV = 6;
         int width = 12;
         int height = 12;
         int CenterChunkX = static_cast<int>(std::floor(camera.position.x / width) * width);
@@ -179,8 +199,9 @@ int main()
 	    int offsetV = (renderDistanceV - 1) * height / 2;
 
 
-        // GENERATE 1 CHUNK PER FRAME
+        // GENERATE 8 CHUNKS PER FRAME
         bool generatedChunkThisFrame = false;
+        int chunksGenerated = 0;
 
         for (int y = 0; y < renderDistanceV; ++y) {
             for (int x = 0; x < renderDistanceH; ++x) {
@@ -190,7 +211,8 @@ int main()
                     int worldZ = z * width - offsetH + CenterChunkZ;
 
                     // Stop if chunk was generated this frame
-                    if (generatedChunkThisFrame) break;
+                    //if (generatedChunkThisFrame) break;
+                    if (chunksGenerated >= 4) break;
 
                     bool chunkPresent = false;
 
@@ -216,14 +238,15 @@ int main()
                         newChunk.z = worldZ;
                         chunks.push_back(newChunk);
                         generatedChunkThisFrame = true;
+                        chunksGenerated += 1;
                     }
                 }
             }
         }
 
 
-        // Remove one chunks
-        if (generatedChunkThisFrame)
+        // Remove chunks
+        for (int i=0; i<chunksGenerated; ++i)
         {
             for (int i=0; i<chunks.size(); ++i)
             {
@@ -301,6 +324,10 @@ int main()
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
         global.FRAME_TIME = duration.count();
+        std::stringstream ss;
+        ss << "SFML window - FPS: " << 1 / (global.FRAME_TIME);
+        std::string title = ss.str();
+        window.setTitle(title);
 
         Debug::EndTimer();
     }
