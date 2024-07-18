@@ -253,7 +253,7 @@ float GetDensity(float x, float y, float z)
 
     // APPLY EDIT DENSITY AND RETURN
     float editDensity = 0.0;
-    if (densityCount != 1) 
+    if (densityCount > 0) 
     {
         editDensity = editDensities[GetDensityIndex(int(x), int(y), int(z))];
     }

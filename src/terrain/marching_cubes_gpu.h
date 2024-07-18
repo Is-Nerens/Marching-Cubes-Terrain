@@ -1,14 +1,12 @@
 #ifndef MARCHING_CUBES_GPU_H
 #define MARCHING_CUBES_GPU_H
 
-#include "vendor/glm/glm.hpp"
+#include "../vendor/glm/glm.hpp"
+#include "../model.h"
+#include "../shader.h"
+#include "../error.h"
 #include "tables.h"
-#include "model.h"
-#include "shader.h"
-#include "error.h"
 #include "vertex_hashmap.h"
-#include "perlin_noise_3d.h"
-#include "FastNoiseLite.h"
 #include <vector>
 #include <GL/glew.h>
 #include <iostream>
@@ -60,7 +58,7 @@ public:
 		TriTableValues = LoadTriTableValues();
 	}
 
-	Model ConstructMeshGPU(int x, int y, int z, const EditedChunk& edit = EditedChunk())
+	Model ConstructMeshGPU(int x, int y, int z, const std::vector<float>& densities = {})
 	{
 		// Debug::StartTimer();
         glUseProgram(computeShaderProgram);
@@ -76,7 +74,7 @@ public:
         BindUniformInt1(computeShaderProgram, "offsetX", x);
         BindUniformInt1(computeShaderProgram, "offsetY", y);
         BindUniformInt1(computeShaderProgram, "offsetZ", z);
-        BindUniformInt1(computeShaderProgram, "densityCount", edit.densityCount);
+        BindUniformInt1(computeShaderProgram, "densityCount", densities.size());
         PrintGLErrors();
 
         GLuint vbo1, vbo2, vbo3; 
@@ -97,7 +95,7 @@ public:
         // Bind buffer for densities
         glGenBuffers(1, &vbo3);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo3);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * edit.densityCount, edit.densities.data(), GL_STATIC_READ);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * densities.size(), densities.data(), GL_STATIC_READ);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, vbo3);
  
         // use compute shader

@@ -4,7 +4,7 @@
 #include "camera.h"
 #include "utils.h"
 #include "filesystem.h"
-#include "terrain.h"
+#include "terrain/terrain.h"
 #include "raycast.h"
 #include <SFML/Graphics.hpp>
 #include "vendor/glm/glm.hpp"
@@ -104,7 +104,6 @@ int main()
 
     float moveSpeed = 10.0f;
     float lookSensitivity = 0.16f;
-    glm::vec2 camAcceleration = glm::vec2(100.0f, 100.0f);
 
 
     TerrainSystem terrainSystem;
@@ -116,19 +115,13 @@ int main()
         window.clear();
         ProcessInput();
 
-
         // TOGGLE MOUSE
-        if (Input.GetKeyDown(KeyCode::Escape))
-        {
-            if (Input.MouseHidden())
-            {
-                // SHOW MOUSE
+        if (Input.GetKeyDown(KeyCode::Escape)) {
+            if (Input.MouseHidden()) { // SHOW MOUSE
                 window.setMouseCursorVisible(true);
                 Input.ShowMouse();
             }
-            else
-            {   
-                // HIDE MOUSE
+            else { // HIDE MOUSE
                 window.setMouseCursorVisible(false);
                 Input.LockMouse(window.getSize().x / 2, window.getSize().y / 2);
             }
@@ -142,25 +135,8 @@ int main()
         if (Input.GetKey(KeyCode::E)) camera.position += moveSpeed * glm::vec3(0.0f, 1.0f, 0.0f) * global.FRAME_TIME;
         if (Input.GetKey(KeyCode::Q)) camera.position -= moveSpeed * glm::vec3(0.0f, 1.0f, 0.0f) * global.FRAME_TIME;
 
-        // // BASIC CAMERA LOOK
-        // if (Input.MouseHidden())
-        // {
-        //     glm::vec2 mouseDelta = glm::vec2{Input.MouseDeltaX(), Input.MouseDeltaY()};
-        //     glm::vec2 targetVelocity = mouseDelta * lookSensitivity;
-        //     glm::vec2 camVelocity;
-
-        //     camVelocity.y = MoveTowards(camVelocity.x, targetVelocity.x, camAcceleration.x * global.FRAME_TIME);
-        //     camVelocity.x = MoveTowards(camVelocity.y, targetVelocity.y, camAcceleration.y * global.FRAME_TIME);
-
-        //     camera.rotation.y += camVelocity.y;
-        //     camera.rotation.x += camVelocity.x;
-
-        //     // Clamp the x rotation to avoid flipping the camera
-        //     camera.rotation.x = std::max(-89.0f, std::min(89.0f, camera.rotation.x));
-        // }
-        // camera.UpdateProjectionView();
         
-        // // BASIC CAMERA LOOK
+        // BASIC CAMERA LOOK
         if (Input.MouseHidden())
         {
             float dX = Input.MouseDeltaX() * lookSensitivity;
@@ -175,14 +151,7 @@ int main()
 
         terrainSystem.Update(camera.position.x , camera.position.y, camera.position.z);
 
-
-
-
-
-
-
-
-        // // test terrain raycast
+        // test terrain raycast
         if (Input.MouseDown())
         {
             RayHit hit = terrainSystem.Raycast(camera.position, camera.Forward());
@@ -193,27 +162,6 @@ int main()
                 // std::cout << "camera pos: " << camera.position.x << " " <<  camera.position.y << " " << camera.position.z << std::endl;
             }
         }
-
-        // if (Input.GetKey(KeyCode::Space))
-        // {
-        //     RayHit hit = terrainGPU.Raycast(camera.position, camera.Forward());
-        //     if (hit.hit) 
-        //     {
-        //         std::cout << "Fired ray, hit position: " << hit.position.x << " " <<  hit.position.y << " " << hit.position.z << std::endl;
-        //         glm::vec3 p = hit.position - camera.Forward() * 0.5f;
-
-        //         terrainGPU.AddDensity(hit.position, 0.02f);
-
-        //         // REGENERATE MODEL
-        //         model = terrainGPU.ConstructMeshGPU(10, 0, 0);
-        //         models.clear();
-        //         models.push_back(model);
-        //     }
-        // }
-
-
-
-
 
         // RENDER PIPELINE
         renderPipeline.Render(terrainSystem.models, camera);
