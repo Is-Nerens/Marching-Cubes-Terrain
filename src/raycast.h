@@ -1,9 +1,9 @@
 #pragma once
 
 struct RayHit {
-    glm::vec3 position = glm::vec3{0.0};
-    glm::vec3 normal = glm::vec3{0.0};
-    float distance = 0.0f;
+    glm::vec3 position;
+    glm::vec3 normal;
+    float distance;
     bool hit = false;
 };
 
@@ -38,29 +38,37 @@ bool RayIntersectsBox(const Ray& ray, const BoundingBox& BoundingBox)
 RayHit RayTriangleIntersection(const Ray& ray, glm::vec3 v1, glm::vec3 v2, glm::vec3 v3)
 {
     RayHit hit;
+
     glm::vec3 edge1 = v2 - v1;
     glm::vec3 edge2 = v3 - v1;
 
-    glm::vec3 p = glm::cross(ray.direction, edge2);
-    float determinant = glm::dot(edge1, p);
-    if (determinant == 0.0f) return hit;
+    glm::vec3 pvec = glm::cross(ray.direction, edge2);
+    float determinant = glm::dot(edge1, pvec);
+
+    const float EPSILON = 1e-8f;
+    if (fabs(determinant) < EPSILON) {
+        // The ray is parallel to the triangle plane
+        return hit;
+    }
+
     float invDeterminant = 1.0f / determinant;
 
-    glm::vec3 o = ray.origin - v1;
-    float u = glm::dot(o, p) * invDeterminant;
-    if (u < 0.0 || u > 1.0) return hit;
+    glm::vec3 tvec = ray.origin - v1;
+    float u = glm::dot(tvec, pvec) * invDeterminant;
+    if (u < 0.0f || u > 1.0f) return hit;
 
-    glm::vec3 q = glm::cross(o, edge1);
-    float v = glm::dot(ray.direction, q) * invDeterminant;
-    if (v < 0.0 || u + v > 1.0) return hit;
+    glm::vec3 qvec = glm::cross(tvec, edge1);
+    float v = glm::dot(ray.direction, qvec) * invDeterminant;
+    if (v < 0.0f || u + v > 1.0f) return hit;
 
-    float dist = glm::dot(edge2, q) * invDeterminant;
-    if (dist < 0.0) return hit;
+    float t = glm::dot(edge2, qvec) * invDeterminant;
+    if (t < EPSILON) return hit;
 
-    hit.position = ray.origin + ray.direction * dist;
+    hit.position = ray.origin + ray.direction * t;
     hit.normal = glm::normalize(glm::cross(edge1, edge2));
-    hit.distance = dist;
+    hit.distance = t;
     hit.hit = true;
+
     return hit;
 }
 
@@ -72,3 +80,4 @@ bool InBoundingBox(const glm::vec3& position, const BoundingBox& boundingBox)
     bool insideZ = (position.z >= boundingBox.min.z) && (position.z <= boundingBox.max.z);
     return insideX && insideY && insideZ;
 }
+

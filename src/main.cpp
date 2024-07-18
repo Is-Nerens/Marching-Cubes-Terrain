@@ -146,20 +146,20 @@ int main()
             camera.rotation.x += dY;
             camera.rotation.x = std::max(-89.0f, std::min(89.0f, camera.rotation.x));
         }
-        camera.UpdateProjectionView(); 
-
+        camera.UpdateProjectionView();  
 
         terrainSystem.Update(camera.position.x , camera.position.y, camera.position.z);
 
         // test terrain raycast
         if (Input.MouseDown())
-        {
+        {   
             RayHit hit = terrainSystem.Raycast(camera.position, camera.Forward());
             if (hit.hit) 
             {
-                terrainSystem.AddDensity(hit.position, 2.0f, 0.1f);
-                // std::cout << "Fired ray, hit position: " << hit.position.x << " " <<  hit.position.y << " " << hit.position.z << std::endl;
-                // std::cout << "camera pos: " << camera.position.x << " " <<  camera.position.y << " " << camera.position.z << std::endl;
+                glm::vec3 terraPoint = hit.position - camera.Forward() * 0.25f;
+                terrainSystem.AddDensity(hit.position, 2.0f, -0.0001f);
+                std::cout << "Fired ray, hit position: " << hit.position.x << " " <<  hit.position.y << " " << hit.position.z << std::endl;
+                std::cout << "camera pos: " << camera.position.x << " " <<  camera.position.y << " " << camera.position.z << std::endl;
             }
         }
 
@@ -174,7 +174,7 @@ int main()
         auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
         global.FRAME_TIME = duration.count();
         std::stringstream ss;
-        ss << "SFML window - FPS: " << 1 / (global.FRAME_TIME);
+        ss << "SFML window - FPS: " << std::fixed << std::setprecision(0) << 1 / global.FRAME_TIME;
         std::string title = ss.str();
         window.setTitle(title);
 

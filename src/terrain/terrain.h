@@ -31,9 +31,9 @@ public:
     void Update(float playerX, float playerY, float playerZ)
     {
         // COORDINATES OF CHUNK THAT BOUNDS THE PLAYER
-        int playerChunkX = (static_cast<int>(std::round(playerX / width)  * width)  -(renderDistanceH - 1) * width  / 2);
-        int playerChunkY = (static_cast<int>(std::round(playerY / height) * height) -(renderDistanceV - 1) * height / 2);
-	    int playerChunkZ = (static_cast<int>(std::round(playerZ / width)  * width)  -(renderDistanceH - 1) * width  / 2);
+        int playerChunkX = (std::round(playerX / width)  * width)  -(renderDistanceH - 1) * width  / 2;
+        int playerChunkY = (std::round(playerY / height) * height) -(renderDistanceV - 1) * height / 2;
+	    int playerChunkZ = (std::round(playerZ / width)  * width)  -(renderDistanceH - 1) * width  / 2;
 
         // GENERATE 8 CHUNKS PER FRAME
         int chunksGenerated = 0;
@@ -130,18 +130,21 @@ public:
                 // LOOP OVER MODEL INDICES TO EXTRACT TRIANGLE VERTICES
                 for (int k=0; k<models[i].indices.size(); k+=3) 
                 {
+                    int v1Index = models[i].indices[k + 0];
+                    int v2Index = models[i].indices[k + 1];
+                    int v3Index = models[i].indices[k + 2];
                     glm::vec3 v1 = glm::vec3{
-                        models[i].vertices[(k + 0) * 3 + 0] + models[i].position.x, 
-                        models[i].vertices[(k + 0) * 3 + 1] + models[i].position.y, 
-                        models[i].vertices[(k + 0) * 3 + 2] + models[i].position.z};
+                        models[i].vertices[v1Index * 6 + 0] + models[i].position.x, 
+                        models[i].vertices[v1Index * 6 + 1] + models[i].position.y, 
+                        models[i].vertices[v1Index * 6 + 2] + models[i].position.z};
                     glm::vec3 v2 = glm::vec3{
-                        models[i].vertices[(k + 1) * 3 + 0] + models[i].position.x, 
-                        models[i].vertices[(k + 1) * 3 + 1] + models[i].position.y, 
-                        models[i].vertices[(k + 1) * 3 + 2] + models[i].position.z};
+                        models[i].vertices[v2Index * 6 + 0] + models[i].position.x, 
+                        models[i].vertices[v2Index * 6 + 1] + models[i].position.y, 
+                        models[i].vertices[v2Index * 6 + 2] + models[i].position.z};
                     glm::vec3 v3 = glm::vec3{
-                        models[i].vertices[(k + 2) * 3 + 0] + models[i].position.x, 
-                        models[i].vertices[(k + 2) * 3 + 1] + models[i].position.y, 
-                        models[i].vertices[(k + 2) * 3 + 2] + models[i].position.z};
+                        models[i].vertices[v3Index * 6 + 0] + models[i].position.x, 
+                        models[i].vertices[v3Index * 6 + 1] + models[i].position.y, 
+                        models[i].vertices[v3Index * 6 + 2] + models[i].position.z};
                     
                     // RAY TRIANGLE INTERSECTION WITH EVERY FACE
                     RayHit newhit = RayTriangleIntersection(ray, v1, v2, v3);
@@ -164,7 +167,7 @@ public:
         int chunkY = std::round(position.y / height) * height - (renderDistanceV - 1) * height / 2;
         int chunkZ = std::round(position.z / width)  * width  - (renderDistanceH - 1) * width  / 2;
 
-        std::cout << "\n" << "Editing Chunk Density..." << std::endl;
+        std::cout << "Editing Chunk Density..." << std::endl;
         std::cout << "edit chunk pos: " << chunkX <<  " " << chunkY <<  " " << chunkZ << std::endl;
 
         // FIND WHICH CHUNK NEEDS TO HAVE ITS DENSITIES UPDATED
@@ -177,6 +180,7 @@ public:
                 int cornerX = WorldToChunkCorner(std::round(position.x), width+1);
                 int cornerY = WorldToChunkCorner(std::round(position.y), height+1);
                 int cornerZ = WorldToChunkCorner(std::round(position.z), width+1);
+                std::cout << cornerX << " " << cornerY << " " << cornerZ << std::endl;
                 int densityIndex = GetDensityIndex(cornerX, cornerY, cornerZ);
                 chunks[i].densities[densityIndex] += amount;
                 chunks[i].regenerate = true;
@@ -188,9 +192,8 @@ public:
 private:
     TerrainGPU terrainGPU;
     std::vector<Chunk> chunks;
-    std::vector<Chunk> flaggedForEdit;
 
-    int renderDistanceH = 3;
+    int renderDistanceH = 9;
     int renderDistanceV = 3;
     int width = 32;
     int height = 32;

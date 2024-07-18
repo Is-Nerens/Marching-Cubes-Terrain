@@ -57,7 +57,7 @@ vec3 CalculateNormal(vec3 v1, vec3 v2, vec3 v3)
 
 int GetDensityIndex(int x, int y, int z)
 {
-    return x + (y * int(gl_NumWorkGroups.x)) + (z * int(gl_NumWorkGroups.x) * int(gl_NumWorkGroups.y));
+    return x + (y * (int(gl_NumWorkGroups.x) + 1)) + (z * (int(gl_NumWorkGroups.x) + 1) * (int(gl_NumWorkGroups.y) + 1));
 }
 
 
@@ -220,10 +220,11 @@ float Perlin2D(float x, float y)
 
 float GetSurfaceHeight(float x, float z)
 {
-    return (Perlin2D((x + offsetX) * 0.015, (z + offsetZ) * 0.015) * 20) + 
-    (Perlin2D((x + offsetX) * 0.03, (z + offsetZ) * 0.03) * 10) + 
-    (Perlin2D((x + offsetX) * 0.06, (z + offsetZ) * 0.06) * 5) + 
-    (Perlin2D((x + offsetX) * 0.12, (z + offsetZ) * 0.12) * 2.5);
+    return (Perlin2D((x + offsetX) * 0.005, (z + offsetZ) * 0.005) * 40) + 
+    (Perlin2D((x + offsetX) * 0.01, (z + offsetZ) * 0.01) * 20) + 
+    (Perlin2D((x + offsetX) * 0.02, (z + offsetZ) * 0.02) * 10) + 
+    (Perlin2D((x + offsetX) * 0.04, (z + offsetZ) * 0.04) * 5) + 
+    (Perlin2D((x + offsetX) * 0.08, (z + offsetZ) * 0.08) * 2.5);
 }
 
 float GetCaveDensity(float x, float y, float z)
@@ -247,9 +248,18 @@ float GetDensity(float x, float y, float z)
 
     float caveDensity = GetCaveDensity(x, y, z) * 0.9; 
 
-    // BLEND BETWEEN CAVE DENSITY AND SURFACE DENSITY
-    float blendTerm = clamp(pointHeight / 5, 0, 1);
-    float density = mix(caveDensity, surfaceDensity, blendTerm);
+    // BLEND BETWEEN CAVE DENSITY AND SURFACE 
+    float blendDistance = 5;
+    float density = 0;
+    if (pointHeight < surfaceHeight + blendDistance)
+    {
+        float blendTerm = clamp((surfaceHeight + blendDistance - pointHeight) / blendDistance, 0, 1);
+        density = mix(surfaceDensity, caveDensity, blendTerm);
+    }
+    else
+    {
+        density = surfaceDensity;
+    }
 
     // APPLY EDIT DENSITY AND RETURN
     float editDensity = 0.0;
