@@ -156,7 +156,6 @@ int main()
             RayHit hit = terrainSystem.Raycast(camera.position, camera.Forward());
             if (hit.hit) 
             {
-                glm::vec3 terraPoint = hit.position - camera.Forward() * 0.25f;
                 terrainSystem.AddDensity(hit.position, 2.0f, 0.0001f);
                 std::cout << "Fired ray, hit position: " << hit.position.x << " " <<  hit.position.y << " " << hit.position.z << std::endl;
                 std::cout << "camera pos: " << camera.position.x << " " <<  camera.position.y << " " << camera.position.z << std::endl;

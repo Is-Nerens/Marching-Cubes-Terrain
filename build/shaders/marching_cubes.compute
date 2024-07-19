@@ -229,12 +229,13 @@ float GetSurfaceHeight(float x, float z)
 
 float GetCaveDensity(float x, float y, float z)
 {
-    float sx = (x + offsetX) * 0.07;
-    float sy = (y + offsetY) * 0.07;
-    float sz = (z + offsetZ) * 0.07;
+    float sx = (x + offsetX) * 0.05;
+    float sy = (y + offsetY) * 0.05;
+    float sz = (z + offsetZ) * 0.05;
     return Perlin3D(sx, sy, sz) 
     + Perlin3D(sx * 2, sy * 2, sz * 2) * 0.5 
-    + Perlin3D(sx * 4, sy * 4, sz * 4) * 0.25;
+    + Perlin3D(sx * 4, sy * 4, sz * 4) * 0.25
+    + Perlin3D(sx * 8, sy * 8, sz * 8) * 0.15;
 }
 
 float GetDensity(float x, float y, float z)
@@ -242,14 +243,14 @@ float GetDensity(float x, float y, float z)
     float pointHeight = y + offsetY;
 
     // Calculate the density based on the height difference for the surface
-    float surfaceHeight = GetSurfaceHeight(x, z) * 2;
+    float surfaceHeight = GetSurfaceHeight(x, z) * 1.5;
     float surfaceDensity = surfaceHeight - pointHeight;
     surfaceDensity = clamp(surfaceDensity, 0.0, 1.0);
 
-    float caveDensity = GetCaveDensity(x, y, z) * 0.9; 
+    float caveDensity = GetCaveDensity(x, y, z) * 0.85; 
 
     // BLEND BETWEEN CAVE DENSITY AND SURFACE 
-    float blendDistance = 5;
+    float blendDistance = 6;
     float density = 0;
     if (pointHeight < surfaceHeight + blendDistance)
     {

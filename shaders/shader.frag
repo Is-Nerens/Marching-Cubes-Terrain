@@ -22,17 +22,17 @@ void main() {
     vec3 skyColor = vec3(0.53, 0.81, 0.92);
     vec3 fogColour = vec3(0.53, 0.81, 0.92);
     float fogDensity = 0.007; 
-    float stoneTextureScale = 8.0;
-    float grassTextureScale = 6.0;
+    float stoneTextureScale = 0.125;
+    float grassTextureScale = 0.16;
     float ambientStrength = 0.2;
     float normalMapStrength = 0.4;
 
 
 
     // TRIPLANAR MAPPING - BLENDING BETWEEN A TEXTURE FROM 3 SIDES BASED ON THE FRAGMENT NORMAL
-    vec2 uvX = FragPosWorld.yz / stoneTextureScale; // x facing plane
-    vec2 uvY = FragPosWorld.xz / stoneTextureScale; // y facing plane
-    vec2 uvZ = FragPosWorld.xy / stoneTextureScale; // z facing plane
+    vec2 uvX = FragPosWorld.yz; // x facing plane
+    vec2 uvY = FragPosWorld.xz; // y facing plane
+    vec2 uvZ = FragPosWorld.xy; // z facing plane
     vec3 blendWeights = abs(v_Normal);
     blendWeights = blendWeights / (blendWeights.x + blendWeights.y + blendWeights.z); // Normalize weights
 
@@ -50,13 +50,13 @@ void main() {
     // Calculate the blend factor based on the angle
     float steepnessBlendFactor = smoothstep(angleThreshold - blendDistance, angleThreshold, degrees);
 
-    vec4 rockColorX = texture(u_rock_albedo_texture, uvX);
-    vec4 rockColorY = texture(u_rock_albedo_texture, uvY);
-    vec4 rockColorZ = texture(u_rock_albedo_texture, uvZ);
+    vec4 rockColorX = texture(u_rock_albedo_texture, uvX * stoneTextureScale);
+    vec4 rockColorY = texture(u_rock_albedo_texture, uvY * stoneTextureScale);
+    vec4 rockColorZ = texture(u_rock_albedo_texture, uvZ * stoneTextureScale);
 
-    vec4 grassColorX = texture(u_grass_albedo_texture, uvX);
-    vec4 grassColorY = texture(u_grass_albedo_texture, uvY);
-    vec4 grassColorZ = texture(u_grass_albedo_texture, uvZ);
+    vec4 grassColorX = texture(u_grass_albedo_texture, uvX * grassTextureScale);
+    vec4 grassColorY = texture(u_grass_albedo_texture, uvY * grassTextureScale);
+    vec4 grassColorZ = texture(u_grass_albedo_texture, uvZ * grassTextureScale);
 
     // FINAL TEXTURE COLOUR
     vec4 texColorX = mix(rockColorX, grassColorX, steepnessBlendFactor);
@@ -70,13 +70,13 @@ void main() {
 
 
     // APPLY NORMAL MAP
-    vec3 rockNormalMapX = texture(u_rock_normal_texture, uvX).rgb * 2.0 - 1.0;
-    vec3 rockNormalMapY = texture(u_rock_normal_texture, uvY).rgb * 2.0 - 1.0;
-    vec3 rockNormalMapZ = texture(u_rock_normal_texture, uvZ).rgb * 2.0 - 1.0;
+    vec3 rockNormalMapX = texture(u_rock_normal_texture, uvX * stoneTextureScale).rgb * 2.0 - 1.0;
+    vec3 rockNormalMapY = texture(u_rock_normal_texture, uvY * stoneTextureScale).rgb * 2.0 - 1.0;
+    vec3 rockNormalMapZ = texture(u_rock_normal_texture, uvZ * stoneTextureScale).rgb * 2.0 - 1.0;
 
-    vec3 grassNormalMapX = texture(u_grass_normal_texture, uvX).rgb * 2.0 - 1.0;
-    vec3 grassNormalMapY = texture(u_grass_normal_texture, uvY).rgb * 2.0 - 1.0;
-    vec3 grassNormalMapZ = texture(u_grass_normal_texture, uvZ).rgb * 2.0 - 1.0;
+    vec3 grassNormalMapX = texture(u_grass_normal_texture, uvX * grassTextureScale).rgb * 2.0 - 1.0;
+    vec3 grassNormalMapY = texture(u_grass_normal_texture, uvY * grassTextureScale).rgb * 2.0 - 1.0;
+    vec3 grassNormalMapZ = texture(u_grass_normal_texture, uvZ * grassTextureScale).rgb * 2.0 - 1.0;
 
     vec3 normalMapX = mix(rockNormalMapX, grassNormalMapX, steepnessBlendFactor);
     vec3 normalMapY = mix(rockNormalMapY, grassNormalMapY, steepnessBlendFactor);

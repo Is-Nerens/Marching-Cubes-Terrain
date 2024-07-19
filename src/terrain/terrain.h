@@ -150,7 +150,7 @@ public:
                     RayHit newhit = RayTriangleIntersection(ray, v1, v2, v3);
                     if (newhit.hit) {
                         if (newhit.distance < closestHit) {
-                            newhit.distance = closestHit;
+                            closestHit = newhit.distance;
                             hit = newhit;
                         }
                     }
@@ -163,9 +163,9 @@ public:
     void AddDensity(glm::vec3& position, float radius, float amount)
     {
         // COORDINATES OF CHUNK THAT BOUNDS THE POSITION
-        int chunkX = std::round(position.x / width)  * width  - (renderDistanceH - 1) * width  / 2;
-        int chunkY = std::round(position.y / height) * height - (renderDistanceV - 1) * height / 2;
-        int chunkZ = std::round(position.z / width)  * width  - (renderDistanceH - 1) * width  / 2;
+        int chunkX = (std::round(position.x / width)  * width);
+        int chunkY = (std::round(position.y / height) * height);
+	    int chunkZ = (std::round(position.z / width)  * width);
 
         std::cout << "Editing Chunk Density..." << std::endl;
         std::cout << "edit chunk pos: " << chunkX <<  " " << chunkY <<  " " << chunkZ << std::endl;
@@ -174,17 +174,18 @@ public:
         for (int i=0; i<chunks.size(); ++i)
         {
             // FOUND CHUNK
-            if (chunks[i].x == chunkX && chunks[i].y == chunkY && chunks[i].z == chunkZ)
+            if (chunks[i].x == chunkX && chunks[i].y == chunkY && chunks[i].z == chunkZ) 
             {
                 // CALCULATE INDEX OF DENSITY ARRAY
-                int cornerX = WorldToChunkCorner(std::round(position.x), width+1);
-                int cornerY = WorldToChunkCorner(std::round(position.y), height+1);
-                int cornerZ = WorldToChunkCorner(std::round(position.z), width+1);
+                int cornerX = WorldToChunkCorner(std::round(position.x), width);
+                int cornerY = WorldToChunkCorner(std::round(position.y), height);
+                int cornerZ = WorldToChunkCorner(std::round(position.z), width);
                 std::cout << cornerX << " " << cornerY << " " << cornerZ << std::endl;
                 int densityIndex = GetDensityIndex(cornerX, cornerY, cornerZ);
                 chunks[i].densities[densityIndex] += amount;
                 chunks[i].regenerate = true;
                 std::cout << "Found Chunk" << std::endl;
+                break;
             }
         }
     }
@@ -193,7 +194,7 @@ private:
     TerrainGPU terrainGPU;
     std::vector<Chunk> chunks;
 
-    int renderDistanceH = 7;
+    int renderDistanceH = 9;
     int renderDistanceV = 5;
     int width = 16;
     int height = 16;
