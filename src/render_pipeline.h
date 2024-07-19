@@ -40,39 +40,16 @@ public:
     
 
 
-        // SEND TEXTURES TO GPU ////////////////////////////
-        // Texture rock_1_albedo_Texture("textures/rock_1_albedo.jpg");
-        // rock_1_albedo_Texture.Bind(0);
-        // glUniform1i(glGetUniformLocation(shaderProgram, "u_albedo_texture"), 0); 
-
-        // Texture rock_1_normal_Texture("textures/rock_1_normal.jpg");
-        // rock_1_normal_Texture.Bind(1);
-        // glUniform1i(glGetUniformLocation(shaderProgram, "u_normal_texture"), 1); 
-
-        // Texture rock_1_height_Texture("textures/rock_1_height.jpg");
-        // rock_1_height_Texture.Bind(2);
-        // glUniform1i(glGetUniformLocation(shaderProgram, "u_height_texture"), 2); 
-
-        // Texture rock_1_roughness_Texture("textures/rock_1_roughness.jpg"); 
-        // rock_1_roughness_Texture.Bind(3);
-        // glUniform1i(glGetUniformLocation(shaderProgram, "u_roughness_texture"), 3); 
-
 
 
         int width, height, bpp;
         stbi_set_flip_vertically_on_load(1);
 
-
-
-        // ALBEDO TEXTURE ////////////////////////
-        unsigned int texture1;
+        // ROCK TEXTURE ////////////////////////
         std::string path1 = "textures/rock_1_albedo.jpg";
         unsigned char* localbuffer1 = stbi_load(path1.c_str(), &width, &height, &bpp, 4);
-
         glGenTextures(1, &texture1);
-        glActiveTexture(GL_TEXTURE0 + 0);
         glBindTexture(GL_TEXTURE_2D, texture1);
-
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -80,17 +57,11 @@ public:
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, localbuffer1);
         stbi_image_free(localbuffer1);
 
-
-        
-
-        // NORMAL MAP TEXTURE /////////////////////
-        unsigned int texture2;
+        // ROCK NORMAL TEXTURE /////////////////////
         std::string path2 = "textures/rock_1_normal.jpg";
         unsigned char* localbuffer2 = stbi_load(path2.c_str(), &width, &height, &bpp, 4);
-
         glGenTextures(1, &texture2);
-        glActiveTexture(GL_TEXTURE0 + 1);
-
+        glBindTexture(GL_TEXTURE_2D, texture2);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -98,39 +69,34 @@ public:
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, localbuffer2);
         stbi_image_free(localbuffer2);
 
-        // FOR SOME REASON IT ONLY LETS ME USE TWO TEXTURES WHEN THIS CODE BELOW IS HERE RATHER THAN ABOVE LIKE IN THE ALBEDO
-        glBindTexture(GL_TEXTURE_2D, texture2);
-
-
-
-
-
-
         // GRASS TEXTURE /////////////////////
-        // unsigned int texture3;
-        // std::string path3 = "textures/grass_1_albedo.jpg";
-        // unsigned char* localbuffer3 = stbi_load(path3.c_str(), &width, &height, &bpp, 4);
+        std::string path3 = "textures/grass_2_albedo.jpg";
+        unsigned char* localbuffer3 = stbi_load(path3.c_str(), &width, &height, &bpp, 4);
+        glGenTextures(1, &texture3);
+        glBindTexture(GL_TEXTURE_2D, texture3);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, localbuffer3);
+        stbi_image_free(localbuffer3);
 
-        // glGenTextures(1, &texture3);
-        // glActiveTexture(GL_TEXTURE0 + 2);
+        // GRASS NORMAL TEXTURE /////////////////////
+        std::string path4 = "textures/grass_2_normal.jpg";
+        unsigned char* localbuffer4 = stbi_load(path4.c_str(), &width, &height, &bpp, 4);
+        glGenTextures(1, &texture4);
+        glBindTexture(GL_TEXTURE_2D, texture4);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, localbuffer4);
+        stbi_image_free(localbuffer4);
 
-        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, localbuffer3);
-        // stbi_image_free(localbuffer3);
-
-        // // FOR SOME REASON IT ONLY LETS ME USE TWO TEXTURES WHEN THIS CODE BELOW IS HERE RATHER THAN ABOVE LIKE IN THE ALBEDO
-        // glBindTexture(GL_TEXTURE_2D, texture3);
-
-
-
-
-
-        glUniform1i(glGetUniformLocation(shaderProgram, "u_albedo_texture"), 0); 
-        glUniform1i(glGetUniformLocation(shaderProgram, "u_normal_texture"), 1); 
-        // glUniform1i(glGetUniformLocation(shaderProgram, "u_grass_texture"), 2); 
+        glUniform1i(glGetUniformLocation(shaderProgram, "u_rock_albedo_texture"), 0); 
+        glUniform1i(glGetUniformLocation(shaderProgram, "u_rock_normal_texture"), 1); 
+        glUniform1i(glGetUniformLocation(shaderProgram, "u_grass_albedo_texture"), 2); 
+        glUniform1i(glGetUniformLocation(shaderProgram, "u_grass_normal_texture"), 3); 
 
 
 
@@ -213,6 +179,16 @@ public:
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, models[i].indices.size() * sizeof(unsigned int), models[i].indices.data(), GL_STATIC_DRAW);
 
+            // Bind Textures
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, texture1);
+            glActiveTexture(GL_TEXTURE0 + 1);
+            glBindTexture(GL_TEXTURE_2D, texture2);
+            glActiveTexture(GL_TEXTURE0 + 2);
+            glBindTexture(GL_TEXTURE_2D, texture3);
+            glActiveTexture(GL_TEXTURE0 + 3);
+            glBindTexture(GL_TEXTURE_2D, texture4);
+
             // Draw the model
             glBindVertexArray(VAO);
             glDrawElements(GL_TRIANGLES, models[i].indices.size(), GL_UNSIGNED_INT, nullptr);
@@ -281,4 +257,6 @@ private:
     int MVP_UniformLocation;
     int modelMatrixUniformLocation;
     int cameraPosUniformLocation;
+
+    unsigned int texture1, texture2, texture3, texture4;
 };

@@ -8,11 +8,11 @@ in vec3 FragPosWorld;
 // FROM CPU
 uniform vec3 u_CameraPos;
 uniform vec4 u_Colour;
-uniform sampler2D u_albedo_texture;
-uniform sampler2D u_normal_texture;
-// uniform sampler2D u_grass_texture;
-// uniform sampler2D u_height_texture;
-// uniform sampler2D u_roughness_texture;
+uniform sampler2D u_rock_albedo_texture;
+uniform sampler2D u_rock_normal_texture;
+uniform sampler2D u_grass_albedo_texture;
+uniform sampler2D u_grass_normal_texture;
+
 
 // PIXEL OUTPUT COLOUR
 layout (location = 0) out vec4 FragColour;
@@ -39,27 +39,29 @@ void main() {
 
 
     // DETERMINE SURFACE TEXTURE COLOUR /////////////////////////////////
-    // Determine steepness based on the dot product with the up vector
-    float steepness = dot(normalize(v_Normal), vec3(0.0, 1.0, 0.0));
-    float steepnessThreshold = 0.1; // Adjust this value as needed
-    float blendFactor = smoothstep(steepnessThreshold - 0.2, steepnessThreshold, steepness);
-    if (FragPosWorld.y < 70) { blendFactor = 1; }
+    float cosTheta = dot(normalize(v_Normal), vec3(0.0, 1.0, 0.0));
+    float theta = acos(cosTheta); // Angle in radians
+    float degrees = degrees(theta); // Convert to degrees
 
-    vec4 albedoColorX = texture(u_albedo_texture, uvX);
-    vec4 albedoColorY = texture(u_albedo_texture, uvY);
-    vec4 albedoColorZ = texture(u_albedo_texture, uvZ);
+    // Define the angle threshold and blend distance
+    float angleThreshold = 140; 
+    float blendDistance = 25.0; 
 
-    // vec4 grassColorX = texture(u_normal_texture, uvX);
-    // vec4 grassColorY = texture(u_normal_texture, uvY);
-    // vec4 grassColorZ = texture(u_normal_texture, uvZ);
-    vec4 grassColorX = vec4(0.4, 0.7, 0.2, 1.0);
-    vec4 grassColorY = vec4(0.4, 0.7, 0.2, 1.0);
-    vec4 grassColorZ = vec4(0.4, 0.7, 0.2, 1.0);
+    // Calculate the blend factor based on the angle
+    float steepnessBlendFactor = smoothstep(angleThreshold - blendDistance, angleThreshold, degrees);
+
+    vec4 rockColorX = texture(u_rock_albedo_texture, uvX);
+    vec4 rockColorY = texture(u_rock_albedo_texture, uvY);
+    vec4 rockColorZ = texture(u_rock_albedo_texture, uvZ);
+
+    vec4 grassColorX = texture(u_grass_albedo_texture, uvX);
+    vec4 grassColorY = texture(u_grass_albedo_texture, uvY);
+    vec4 grassColorZ = texture(u_grass_albedo_texture, uvZ);
 
     // FINAL TEXTURE COLOUR
-    vec4 texColorX = mix(grassColorX, albedoColorX, blendFactor);
-    vec4 texColorY = mix(grassColorY, albedoColorY, blendFactor);
-    vec4 texColorZ = mix(grassColorZ, albedoColorZ, blendFactor);
+    vec4 texColorX = mix(rockColorX, grassColorX, steepnessBlendFactor);
+    vec4 texColorY = mix(rockColorY, grassColorY, steepnessBlendFactor);
+    vec4 texColorZ = mix(rockColorZ, grassColorZ, steepnessBlendFactor);
     vec3 textureColor = texColorX.rgb * blendWeights.x + texColorY.rgb * blendWeights.y + texColorZ.rgb * blendWeights.z;
 
 
@@ -68,9 +70,17 @@ void main() {
 
 
     // APPLY NORMAL MAP
-    vec3 normalMapX = texture(u_normal_texture, uvX).rgb * 2.0 - 1.0;
-    vec3 normalMapY = texture(u_normal_texture, uvY).rgb * 2.0 - 1.0;
-    vec3 normalMapZ = texture(u_normal_texture, uvZ).rgb * 2.0 - 1.0;
+    vec3 rockNormalMapX = texture(u_rock_normal_texture, uvX).rgb * 2.0 - 1.0;
+    vec3 rockNormalMapY = texture(u_rock_normal_texture, uvY).rgb * 2.0 - 1.0;
+    vec3 rockNormalMapZ = texture(u_rock_normal_texture, uvZ).rgb * 2.0 - 1.0;
+
+    vec3 grassNormalMapX = texture(u_grass_normal_texture, uvX).rgb * 2.0 - 1.0;
+    vec3 grassNormalMapY = texture(u_grass_normal_texture, uvY).rgb * 2.0 - 1.0;
+    vec3 grassNormalMapZ = texture(u_grass_normal_texture, uvZ).rgb * 2.0 - 1.0;
+
+    vec3 normalMapX = mix(rockNormalMapX, grassNormalMapX, steepnessBlendFactor);
+    vec3 normalMapY = mix(rockNormalMapY, grassNormalMapY, steepnessBlendFactor);
+    vec3 normalMapZ = mix(rockNormalMapZ, grassNormalMapZ, steepnessBlendFactor);
 
     // Get the sign (-1 or 1) of the surface normal
     vec3 axisSign = sign(v_Normal);

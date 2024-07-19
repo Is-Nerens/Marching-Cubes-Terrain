@@ -193,10 +193,10 @@ private:
     TerrainGPU terrainGPU;
     std::vector<Chunk> chunks;
 
-    int renderDistanceH = 9;
-    int renderDistanceV = 3;
-    int width = 32;
-    int height = 32;
+    int renderDistanceH = 7;
+    int renderDistanceV = 5;
+    int width = 16;
+    int height = 16;
 
     int GetDensityIndex(int x, int y, int z) {
         return x + (y * (width + 1)) + (z * (width + 1) * (height + 1));
