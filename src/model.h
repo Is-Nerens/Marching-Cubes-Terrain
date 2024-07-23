@@ -2,6 +2,7 @@
 
 #include <vector>
 #include "vendor/glm/glm.hpp"
+#include "raycast.h" // For Bounding Box
 
 class Model {
 public:
@@ -27,5 +28,6 @@ public:
     
     std::vector<float> vertices;
     std::vector<unsigned int> indices;
+    BoundingBox boundingBox;
     glm::vec3 position;
 };

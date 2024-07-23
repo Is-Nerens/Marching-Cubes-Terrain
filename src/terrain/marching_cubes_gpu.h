@@ -7,6 +7,7 @@
 #include "../error.h"
 #include "tables.h"
 #include "vertex_hashmap.h"
+#include "direct_addressor.h"
 #include <vector>
 #include <GL/glew.h>
 #include <iostream>
@@ -51,23 +52,26 @@ public:
 
 	TerrainGPU()
 	{
-        // Load shaders from file
+        // LOAD COMPUTESHADER FROM FILE
         std::string compShaderSource = LoadShader("./shaders/marching_cubes.compute");
         computeShaderProgram = CreateComputeShader(compShaderSource);
 
+        // LOAD TRI TABLE
 		TriTableValues = LoadTriTableValues();
 	}
 
 	Model ConstructMeshGPU(int x, int y, int z, const std::vector<float>& densities = {})
 	{
-		// Debug::StartTimer();
         glUseProgram(computeShaderProgram);
 
 		Model model;
         std::vector<float> Vertices = std::vector<float>((width + 1) * (width + 1) * (height + 1) * 48);
         std::vector<unsigned int> Indices;
 
-		VertexHasher::ResetHashTable();
+
+        VertexHasher::ResetHashTable();
+        // VertexHasher::ResetIndices();
+    
 
         // shader uniforms
         BindUniformFloat1(computeShaderProgram, "densityThreshold", densityThreshold);
@@ -75,15 +79,14 @@ public:
         BindUniformInt1(computeShaderProgram, "offsetY", y);
         BindUniformInt1(computeShaderProgram, "offsetZ", z);
         BindUniformInt1(computeShaderProgram, "densityCount", densities.size());
-        PrintGLErrors();
 
         GLuint vbo1, vbo2, vbo3; 
 
 		// Bind buffer for vertices
 		glGenBuffers(1, &vbo1);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo1);
-		size_t vertexBufferSize = static_cast<size_t>((width + 1) * (width + 1) * (height + 1) * 48 * sizeof(float)); // for vertices
-		glBufferData(GL_SHADER_STORAGE_BUFFER, vertexBufferSize, Vertices.data(), GL_DYNAMIC_DRAW); // Allocate space without initializing data
+		size_t vertexBufferSize = Vertices.size() * sizeof(float); // for vertices
+		glBufferData(GL_SHADER_STORAGE_BUFFER, vertexBufferSize, Vertices.data(), GL_DYNAMIC_DRAW);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, vbo1);
 
         // Bind buffer for TriTable
@@ -110,7 +113,7 @@ public:
 		GLfloat* verticesDataPtr = nullptr;
 		verticesDataPtr = (GLfloat*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
 		if (verticesDataPtr) {
-			Vertices.assign(verticesDataPtr, verticesDataPtr + ((width + 1) * (width + 1) * (height + 1) * 48));
+			Vertices.assign(verticesDataPtr, verticesDataPtr + Vertices.size());
 			glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 		}
 
@@ -126,9 +129,8 @@ public:
         // set model vertices and indices
         for (int i=0; i<Vertices.size(); i+=12)
         {
-            if (Vertices[i] != 0)
+            if (Vertices[i] != 0.0f)
             {
-				//std::cout << Vertices[i] << std::endl;
                 // vertex 1
                 if (VertexHasher::GetVertexIndex(Vertices[i], Vertices[i+1], Vertices[i+2]) == -1)
                 {
@@ -182,8 +184,10 @@ public:
             }
         }
 
-		// Debug::EndTimer();
 		model.position = {x, y, z};
+        model.boundingBox.min = glm::vec3(x + width/2, y + height/2, z + width/2);
+        model.boundingBox.max = glm::vec3(x - width/2, y - height/2, z - width/2);
+        model.boundingBox.isFilled = true;
         return model;
     }
 

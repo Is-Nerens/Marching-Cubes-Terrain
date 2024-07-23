@@ -148,19 +148,17 @@ int main()
         }
         camera.UpdateProjectionView();  
 
-        terrainSystem.Update(camera.position.x , camera.position.y, camera.position.z);
-
         // test terrain raycast
         if (Input.MouseDown())
         {   
             RayHit hit = terrainSystem.Raycast(camera.position, camera.Forward());
             if (hit.hit) 
             {
-                terrainSystem.AddDensity(hit.position, 2.0f, 0.0001f);
-                std::cout << "Fired ray, hit position: " << hit.position.x << " " <<  hit.position.y << " " << hit.position.z << std::endl;
-                std::cout << "camera pos: " << camera.position.x << " " <<  camera.position.y << " " << camera.position.z << std::endl;
+                terrainSystem.AddDensity(hit.position, 3, -0.00000001f * global.FRAME_TIME);
             }
         }
+
+        terrainSystem.Update(camera.position.x , camera.position.y, camera.position.z);
 
         // RENDER PIPELINE
         renderPipeline.Render(terrainSystem.models, camera);

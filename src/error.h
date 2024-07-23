@@ -32,8 +32,8 @@ namespace Debug
     void EndTimer()
     {
         auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        std::cout << "Duration: " << duration.count() << " ms" << std::endl;
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        std::cout << "Duration: " << duration.count() << " microseconds" << std::endl;
     }
 
 

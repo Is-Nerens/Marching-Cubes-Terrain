@@ -15,6 +15,12 @@ struct Ray {
 struct BoundingBox {
     glm::vec3 min;
     glm::vec3 max;
+    bool isFilled = false;
+};
+
+struct Plane {
+    glm::vec3 normal;
+    float distance;
 };
 
 bool RayIntersectsBox(const Ray& ray, const BoundingBox& BoundingBox)
@@ -72,7 +78,6 @@ RayHit RayTriangleIntersection(const Ray& ray, glm::vec3 v1, glm::vec3 v2, glm::
     return hit;
 }
 
-// Check if position is inside bounding box
 bool InBoundingBox(const glm::vec3& position, const BoundingBox& boundingBox) 
 {
     bool insideX = (position.x >= boundingBox.min.x) && (position.x <= boundingBox.max.x);
@@ -80,4 +85,74 @@ bool InBoundingBox(const glm::vec3& position, const BoundingBox& boundingBox)
     bool insideZ = (position.z >= boundingBox.min.z) && (position.z <= boundingBox.max.z);
     return insideX && insideY && insideZ;
 }
+
+std::vector<Plane> ExtractFrustumPlanes(const glm::mat4& pvm) {
+    std::vector<Plane> planes(6);
+
+    // Left
+    planes[0].normal = glm::vec3(pvm[0][3] + pvm[0][0], pvm[1][3] + pvm[1][0], pvm[2][3] + pvm[2][0]);
+    planes[0].distance = pvm[3][3] + pvm[3][0];
+
+    // Right
+    planes[1].normal = glm::vec3(pvm[0][3] - pvm[0][0], pvm[1][3] - pvm[1][0], pvm[2][3] - pvm[2][0]);
+    planes[1].distance = pvm[3][3] - pvm[3][0];
+
+    // Bottom
+    planes[2].normal = glm::vec3(pvm[0][3] + pvm[0][1], pvm[1][3] + pvm[1][1], pvm[2][3] + pvm[2][1]);
+    planes[2].distance = pvm[3][3] + pvm[3][1];
+
+    // Top
+    planes[3].normal = glm::vec3(pvm[0][3] - pvm[0][1], pvm[1][3] - pvm[1][1], pvm[2][3] - pvm[2][1]);
+    planes[3].distance = pvm[3][3] - pvm[3][1];
+
+    // Near
+    planes[4].normal = glm::vec3(pvm[0][3] + pvm[0][2], pvm[1][3] + pvm[1][2], pvm[2][3] + pvm[2][2]);
+    planes[4].distance = pvm[3][3] + pvm[3][2];
+
+    // Far
+    planes[5].normal = glm::vec3(pvm[0][3] - pvm[0][2], pvm[1][3] - pvm[1][2], pvm[2][3] - pvm[2][2]);
+    planes[5].distance = pvm[3][3] - pvm[3][2];
+
+    for (auto& plane : planes) {
+        float length = glm::length(plane.normal);
+        plane.normal /= length;
+        plane.distance /= length;
+    }
+
+    return planes;
+}
+
+bool IsBoxInFrustum(const std::vector<Plane>& planes, const glm::vec3& min, const glm::vec3& max) {
+    for (const auto& plane : planes) {
+        // Calculate the corner points of the AABB
+        glm::vec3 corners[8] = {
+            glm::vec3(min.x, min.y, min.z),
+            glm::vec3(max.x, min.y, min.z),
+            glm::vec3(min.x, max.y, min.z),
+            glm::vec3(max.x, max.y, min.z),
+            glm::vec3(min.x, min.y, max.z),
+            glm::vec3(max.x, min.y, max.z),
+            glm::vec3(min.x, max.y, max.z),
+            glm::vec3(max.x, max.y, max.z)
+        };
+
+        // Check if all corners are outside this plane
+        bool allOutside = true;
+        for (const auto& corner : corners) {
+            if (glm::dot(plane.normal, corner) + plane.distance >= 0) {
+                allOutside = false;
+                break;
+            }
+        }
+
+        // If all corners are outside this plane, the box is outside the frustum
+        if (allOutside) {
+            return false;
+        }
+    }
+
+    // If we passed all planes, the box is inside or intersects the frustum
+    return true;
+}
+
 

@@ -134,6 +134,9 @@ public:
         
         for (int i = 0; i < models.size(); ++i)
         {   
+            // APPLY FRUSTUM CULLING
+            if (!InFrustum(models[i], camera.GetProjectionViewMatrix())) continue;
+
             // transform uniforms
             glm::mat4 modelMat = glm::translate(glm::mat4(1.0f), models[i].position);
             glm::mat4 mvp = camera.GetProjectionViewMatrix() * modelMat;
@@ -252,6 +255,15 @@ private:
         buffer << stream.rdbuf(); 
         return buffer.str();
     }
+
+    bool InFrustum(Model& model, const glm::mat4& ProjectView) {
+        if (!model.boundingBox.isFilled) return true;
+    
+        std::vector<Plane> planes = ExtractFrustumPlanes(ProjectView);
+
+        return IsBoxInFrustum(planes, model.boundingBox.min, model.boundingBox.max);
+    }
+
 
     unsigned int shaderProgram;
     int MVP_UniformLocation;
