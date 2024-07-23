@@ -65,7 +65,7 @@ public:
         glUseProgram(computeShaderProgram);
 
 		Model model;
-        std::vector<float> Vertices = std::vector<float>((width + 1) * (width + 1) * (height + 1) * 48);
+        std::vector<float> Vertices = std::vector<float>((width + 1) * (width + 1) * (height + 1) * 48, -1.0f);
         std::vector<unsigned int> Indices;
 
 
@@ -129,7 +129,7 @@ public:
         // set model vertices and indices
         for (int i=0; i<Vertices.size(); i+=12)
         {
-            if (Vertices[i] != 0.0f)
+            if (Vertices[i] != -1.0f)
             {
                 // vertex 1
                 if (VertexHasher::GetVertexIndex(Vertices[i], Vertices[i+1], Vertices[i+2]) == -1)

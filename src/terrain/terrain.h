@@ -194,35 +194,27 @@ public:
         int snapWorldX = std::round(position.x);
         int snapWorldY = std::round(position.y);
         int snapWorldZ = std::round(position.z);
-
-        // bounding box of the affected corners
-        int minX = snapWorldX - radius;
-        int maxX = snapWorldX + radius;
-        int minY = snapWorldY - radius;
-        int maxY = snapWorldY + radius;
-        int minZ = snapWorldZ - radius;
-        int maxZ = snapWorldZ + radius;
         
         // FOR EACH CHUNK
         for (int i = 0; i < chunks.size(); ++i) 
         {
             Chunk& chunk = chunks[i];
 
-            // FOR EACH AFFECTED CORNER POSITION
-            for (int x = minX; x < maxX; ++x) {
-            for (int y = minY; y < maxY; ++y) {
-            for (int z = minZ; z < maxZ; ++z) 
+            // FOR EACH CORNER
+            for (int x = snapWorldX - radius + 1; x < snapWorldX + radius; ++x) {
+            for (int y = snapWorldY - radius + 1; y < snapWorldY + radius; ++y) {
+            for (int z = snapWorldZ - radius + 1; z < snapWorldZ + radius; ++z) 
                     {
-                        // CONVERT CORNER POSITION TO CHUNK LOCAL SPACE
-                        int cornerLocalX = x - chunk.x + width/2;
-                        int cornerLocalY = y - chunk.y + height/2;
-                        int cornerLocalZ = z - chunk.z + width/2;
+                        int cornerLocalX = x + width/2 - chunk.x;
+                        int cornerLocalY = y + width/2 - chunk.y;
+                        int cornerLocalZ = z + width/2 - chunk.z;
 
                         // IF CORNER POSITION IS INSIDE CHUNK
-                        if (cornerLocalX >= 0 && cornerLocalX < width &&
-                            cornerLocalY >= 0 && cornerLocalY < height &&
-                            cornerLocalZ >= 0 && cornerLocalZ < width)
+                        if (cornerLocalX >= 0 && cornerLocalX <= width &&
+                            cornerLocalY >= 0 && cornerLocalY <= height &&
+                            cornerLocalZ >= 0 && cornerLocalZ <= width)
                         {
+
                             // IF DIST FROM SNAP POS TO CORNER POS <= RADIUS
                             float distance = glm::distance(glm::vec3(snapWorldX, snapWorldY, snapWorldZ), glm::vec3(x, y, z));
                             if (distance <= radius) 
@@ -242,7 +234,7 @@ private:
     TerrainGPU terrainGPU;
     std::vector<Chunk> chunks;
 
-    int renderDistanceH = 17;
+    int renderDistanceH = 15;
     int renderDistanceV = 11;
     int width = 12;
     int height = 12;

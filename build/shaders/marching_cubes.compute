@@ -272,34 +272,6 @@ float GetDensity(float x, float y, float z)
     return density + editDensity;
 }
 
-// float GetDensity(float x, float y, float z)
-// {
-//     float pointHeight = y + offsetY;
-
-//     // Calculate the density based on the height difference for the surface
-//     float surfaceHeight = GetSurfaceHeight(x, z);
-//     float surfaceDensity = surfaceHeight - pointHeight;
-//     surfaceDensity = clamp(surfaceDensity, 0.0, 1.0);
-
-//     float caveDensity = GetCaveDensity(x, y, z) * 0.9; 
-
-//     // BLEND BETWEEN CAVE DENSITY AND SURFACE DENSITY
-//     float blendTerm = clamp(surfaceHeight / 5, 0, 1);
-//     float density = mix(caveDensity, surfaceDensity, blendTerm);
-
-//     // APPLY EDIT DENSITY AND RETURN
-//     float editDensity = 0.0;
-//     if (densityCount != 1) 
-//     {
-//         editDensity = editDensities[GetDensityIndex(int(x), int(y), int(z))];
-//     }
-
-//     return density + editDensity;
-// }
-
-
-
-
 
 
 
@@ -355,14 +327,14 @@ void main()
 
     // create 8 corners
     Corner corners[8];
-    corners[0].position = vec3(gl_GlobalInvocationID.x - 0.5, gl_GlobalInvocationID.y - 0.5, gl_GlobalInvocationID.z + 0.5);
-    corners[1].position = vec3(gl_GlobalInvocationID.x + 0.5, gl_GlobalInvocationID.y - 0.5, gl_GlobalInvocationID.z + 0.5);
-    corners[2].position = vec3(gl_GlobalInvocationID.x + 0.5, gl_GlobalInvocationID.y - 0.5, gl_GlobalInvocationID.z - 0.5);
-    corners[3].position = vec3(gl_GlobalInvocationID.x - 0.5, gl_GlobalInvocationID.y - 0.5, gl_GlobalInvocationID.z - 0.5);
-    corners[4].position = vec3(gl_GlobalInvocationID.x - 0.5, gl_GlobalInvocationID.y + 0.5, gl_GlobalInvocationID.z + 0.5);
-    corners[5].position = vec3(gl_GlobalInvocationID.x + 0.5, gl_GlobalInvocationID.y + 0.5, gl_GlobalInvocationID.z + 0.5);
-    corners[6].position = vec3(gl_GlobalInvocationID.x + 0.5, gl_GlobalInvocationID.y + 0.5, gl_GlobalInvocationID.z - 0.5);
-    corners[7].position = vec3(gl_GlobalInvocationID.x - 0.5, gl_GlobalInvocationID.y + 0.5, gl_GlobalInvocationID.z - 0.5);
+    corners[0].position = vec3(gl_GlobalInvocationID.x    , gl_GlobalInvocationID.y    , gl_GlobalInvocationID.z + 1);
+    corners[1].position = vec3(gl_GlobalInvocationID.x + 1, gl_GlobalInvocationID.y    , gl_GlobalInvocationID.z + 1);
+    corners[2].position = vec3(gl_GlobalInvocationID.x + 1, gl_GlobalInvocationID.y    , gl_GlobalInvocationID.z    );
+    corners[3].position = vec3(gl_GlobalInvocationID.x    , gl_GlobalInvocationID.y    , gl_GlobalInvocationID.z    );
+    corners[4].position = vec3(gl_GlobalInvocationID.x    , gl_GlobalInvocationID.y + 1, gl_GlobalInvocationID.z + 1);
+    corners[5].position = vec3(gl_GlobalInvocationID.x + 1, gl_GlobalInvocationID.y + 1, gl_GlobalInvocationID.z + 1);
+    corners[6].position = vec3(gl_GlobalInvocationID.x + 1, gl_GlobalInvocationID.y + 1, gl_GlobalInvocationID.z    );
+    corners[7].position = vec3(gl_GlobalInvocationID.x    , gl_GlobalInvocationID.y + 1, gl_GlobalInvocationID.z    );
 
     // calculate the cube index
     int cubeIndex = 0;

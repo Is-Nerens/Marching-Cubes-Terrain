@@ -154,11 +154,12 @@ int main()
             RayHit hit = terrainSystem.Raycast(camera.position, camera.Forward());
             if (hit.hit) 
             {
-                terrainSystem.AddDensity(hit.position, 3, -0.00000001f * global.FRAME_TIME);
+                terrainSystem.AddDensity(hit.position, 3, -0.1f * global.FRAME_TIME);
             }
         }
 
         terrainSystem.Update(camera.position.x , camera.position.y, camera.position.z);
+        
 
         // RENDER PIPELINE
         renderPipeline.Render(terrainSystem.models, camera);
