@@ -245,11 +245,4 @@ private:
     int GetDensityIndex(int x, int y, int z) {
         return x + (y * (width + 1)) + (z * (width + 1) * (height + 1));
     }
-
-    int WorldToChunkCorner(int displacement, int dimension) {
-        int offset = (dimension / 2);
-        int result = (displacement + offset) % (dimension);
-        if (result < 0) result += dimension;
-        return result;
-    }
 };
