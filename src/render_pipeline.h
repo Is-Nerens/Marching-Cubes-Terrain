@@ -120,7 +120,7 @@ public:
         glCullFace(GL_FRONT);
     }
 
-    void Render(std::vector<Model> &models, Camera &camera)
+    void Render(std::vector<Model*> &models, Camera &camera)
     {   
         glUseProgram(shaderProgram);
         
@@ -134,11 +134,14 @@ public:
         
         for (int i = 0; i < models.size(); ++i)
         {   
+            // CHUNK HAS NO VERTICES
+            if (models[i]->VertexCount() == 0) continue;
+
             // APPLY FRUSTUM CULLING
-            if (!InFrustum(models[i], camera.GetProjectionViewMatrix())) continue;
+            if (!InFrustum(*models[i], camera.GetProjectionViewMatrix())) continue;
 
             // transform uniforms
-            glm::mat4 modelMat = glm::translate(glm::mat4(1.0f), models[i].position);
+            glm::mat4 modelMat = glm::translate(glm::mat4(1.0f), models[i]->position);
             glm::mat4 mvp = camera.GetProjectionViewMatrix() * modelMat;
             glm::vec3 cameraPos = camera.position; 
 
@@ -160,7 +163,7 @@ public:
             unsigned int VBO;
             glGenBuffers(1, &VBO);
             glBindBuffer(GL_ARRAY_BUFFER, VBO);
-            glBufferData(GL_ARRAY_BUFFER, models[i].vertices.size() * sizeof(float), models[i].vertices.data(), GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, models[i]->vertices.size() * sizeof(float), models[i]->vertices.data(), GL_STATIC_DRAW);
 
             // Vertex array object 
             unsigned int VAO;
@@ -180,7 +183,7 @@ public:
             unsigned int IBO;
             glGenBuffers(1, &IBO);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, models[i].indices.size() * sizeof(unsigned int), models[i].indices.data(), GL_STATIC_DRAW);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, models[i]->indices.size() * sizeof(unsigned int), models[i]->indices.data(), GL_STATIC_DRAW);
 
             // Bind Textures
             glActiveTexture(GL_TEXTURE0);
@@ -194,7 +197,7 @@ public:
 
             // Draw the model
             glBindVertexArray(VAO);
-            glDrawElements(GL_TRIANGLES, models[i].indices.size(), GL_UNSIGNED_INT, nullptr);
+            glDrawElements(GL_TRIANGLES, models[i]->indices.size(), GL_UNSIGNED_INT, nullptr);
 
             // Clean up resources
             glDeleteBuffers(1, &VBO);

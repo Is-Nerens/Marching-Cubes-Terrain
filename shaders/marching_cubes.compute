@@ -18,6 +18,9 @@ layout(binding = 1) readonly buffer TriTableBuffer {
 layout(binding = 2) readonly buffer EditDensities {
     int editDensities[];
 };
+layout(binding = 3) buffer DensityCache {
+    float densityCache[];
+};
 
 // cornerIndexAFromEdge array
 const int cornerIndexAFromEdge[12] = int[](0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3);
@@ -240,6 +243,12 @@ float GetCaveDensity(float x, float y, float z)
 
 float GetDensity(float x, float y, float z)
 {
+    // CHECK THE DENSITY CACHE TO SEE IF DENSITY HAS ALREADY BEEN CALCULATED
+    int densityIndex = GetDensityIndex(int(x), int(y), int(z));
+    if (densityCache[densityIndex] != -1) {
+        return densityCache[densityIndex];
+    }
+
     float pointHeight = y + offsetY;
 
     // Calculate the density based on the height difference for the surface
@@ -266,10 +275,12 @@ float GetDensity(float x, float y, float z)
     float editDensity = 0.0;
     if (densityCount > 0) 
     {
-        editDensity = editDensities[GetDensityIndex(int(x), int(y), int(z))];
+        editDensity = editDensities[densityIndex];
     }
 
-    return density + editDensity;
+    float result = density + editDensity;
+    densityCache[densityIndex] = result;
+    return result;
 }
 
 
@@ -317,7 +328,6 @@ void AddFace(vec3 v1, vec3 v2, vec3 v3, vec3 normal, int index)
     vertices[index + 11] = normal.z;
 }
 
-
 void main()
 {
     int threadID = int(gl_GlobalInvocationID.x) +
@@ -342,6 +352,12 @@ void main()
         corners[i].density = GetDensity(corners[i].position.x, corners[i].position.y, corners[i].position.z);
         if (corners[i].density > densityThreshold) cubeIndex |= (1 << i);
     }
+
+    // Default v1 x to -1 (CPU Optimisation)
+    vertices[threadID * 48] = -1.0f;
+    vertices[threadID * 48 + 12] = -1.0f;
+    vertices[threadID * 48 + 24] = -1.0f;
+    vertices[threadID * 48 + 36] = -1.0f;
 
     // Fill cubeVertices and cubeNormals arrays
     int i = 0;

@@ -7,7 +7,11 @@
 class Model {
 public:
     Model() {}
-    ~Model() {}
+    ~Model() 
+    {
+        vertices.clear();
+        indices.clear();
+    }
 
     void AddVertex(float x, float y, float z, float nx, float ny, float nz) 
     {

@@ -9,6 +9,7 @@
 #include "vertex_hashmap.h"
 #include "direct_addressor.h"
 #include <vector>
+#include <omp.h>
 #include <GL/glew.h>
 #include <iostream>
 #include <functional>
@@ -58,20 +59,30 @@ public:
 
         // LOAD TRI TABLE
 		TriTableValues = LoadTriTableValues();
+
+        // Bind buffer for TriTable
+        glUseProgram(computeShaderProgram);
+        glGenBuffers(1, &triTableMemory);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, triTableMemory);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * 4096, TriTableValues.data(), GL_STATIC_READ); 
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, triTableMemory);
 	}
+
+    ~TerrainGPU()
+    {
+        // FREE TRITABLE GPU MEMORY
+        glDeleteBuffers(1, &triTableMemory);
+    }
 
 	Model ConstructMeshGPU(int x, int y, int z, const std::vector<float>& densities = {})
 	{
         glUseProgram(computeShaderProgram);
 
 		Model model;
-        std::vector<float> Vertices = std::vector<float>((width + 1) * (width + 1) * (height + 1) * 48, -1.0f);
         std::vector<unsigned int> Indices;
-
-
-        VertexHasher::ResetHashTable();
-        // VertexHasher::ResetIndices();
-    
+        std::vector<float> Vertices = std::vector<float>((width + 1) * (width + 1) * (height + 1) * 48);
+        std::vector<float> DensityCache = std::vector<float>((width+1)*(width+1)*(height+1), -1.0f);
+        VertexHasher::ResetIndices();
 
         // shader uniforms
         BindUniformFloat1(computeShaderProgram, "densityThreshold", densityThreshold);
@@ -80,33 +91,31 @@ public:
         BindUniformInt1(computeShaderProgram, "offsetZ", z);
         BindUniformInt1(computeShaderProgram, "densityCount", densities.size());
 
-        GLuint vbo1, vbo2, vbo3; 
+        GLuint vbo1, vbo3, vbo4; 
 
 		// Bind buffer for vertices
 		glGenBuffers(1, &vbo1);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo1);
-		size_t vertexBufferSize = Vertices.size() * sizeof(float); // for vertices
-		glBufferData(GL_SHADER_STORAGE_BUFFER, vertexBufferSize, Vertices.data(), GL_DYNAMIC_DRAW);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * Vertices.size(), Vertices.data(), GL_DYNAMIC_DRAW);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, vbo1);
-
-        // Bind buffer for TriTable
-        glGenBuffers(1, &vbo2);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo2);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * 4096, TriTableValues.data(), GL_STATIC_READ); 
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vbo2);
 
         // Bind buffer for densities
         glGenBuffers(1, &vbo3);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo3);
         glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * densities.size(), densities.data(), GL_STATIC_READ);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, vbo3);
- 
+
+        // Bind buffer for density cache
+        glGenBuffers(1, &vbo4);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo4);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * DensityCache.size(), DensityCache.data(), GL_DYNAMIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, vbo4);
+
         // use compute shader
         glUseProgram(computeShaderProgram);
         glDispatchCompute(width, height, width);
         glMemoryBarrier(GL_ALL_BARRIER_BITS);
         glFinish();
-
 
 		// Copy vertex data from GPU to CPU
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo1); 
@@ -119,8 +128,8 @@ public:
 
         // free GPU memory
         glDeleteBuffers(1, &vbo1);
-        glDeleteBuffers(1, &vbo2);
         glDeleteBuffers(1, &vbo3);
+        glDeleteBuffers(1, &vbo4);
 
 		float vertOffsetX = width * -0.5f + 0.5f;
 		float vertOffsetY = width * -0.5f + 0.5f;
@@ -195,6 +204,7 @@ private:
     float densityThreshold = 0.7f;
     unsigned int computeShaderProgram;
 	std::vector<int> TriTableValues;
+    GLuint triTableMemory;
 
 	std::vector<int> LoadTriTableValues()
     {

@@ -9,7 +9,7 @@ namespace VertexHasher
     float vertexMapKeys[196608];
     int maxProbeDistance = 0;
 
-    void ResetHashTable()
+    void ResetIndices()
     {
         std::memset(vertexMap, -1, sizeof(vertexMap));
         int maxProbeDistance = 0;
@@ -21,7 +21,7 @@ namespace VertexHasher
         size_t h2 = std::hash<float>{}(y);
         size_t h3 = std::hash<float>{}(z);
         size_t hash = h1;
-        hash ^= h2 + 0x9e3779b9 + (hash << 6) + (hash >> 2);  // 0x9e3779b9 is a prime number
+        hash ^= h2 + 0x9e3779b9 + (hash << 6) + (hash >> 2); 
         hash ^= h3 + 0x9e3779b9 + (hash << 6) + (hash >> 2);
         return hash % 65536;
     }

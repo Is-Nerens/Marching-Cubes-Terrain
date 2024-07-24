@@ -41,7 +41,7 @@ public:
         }
     };
 
-    std::vector<Model> models;
+    std::vector<Model*> models;
     std::unordered_map<std::tuple<int, int, int>, size_t, TupleHash> chunkPosToIndex;
 
     void Update(float playerX, float playerY, float playerZ)
@@ -70,8 +70,10 @@ public:
                     chunkPosToIndex[std::make_tuple(chunks[k].x, chunks[k].y, chunks[k].z)] -= 1; // POTENTIAL OPTIMISATION!! FROM O(n^2) to O(n) - perform one pass over the chunkPosToIndex elements rather than multiple passes
                 }
 
-                chunks.erase(chunks.begin() + i);
+                // THIS CAN BE OPTIMISED FURTHER
+                delete models[i];
                 models.erase(models.begin() + i);
+                chunks.erase(chunks.begin() + i);
                 chunksRemoved += 1;
                 --i;
 
@@ -91,12 +93,13 @@ public:
             // REGENERATE CHUNK
             if (inRenderDist && chunks[i].regenerate)
             {
-                models[i] = terrainGPU.ConstructMeshGPU(chunks[i].x, chunks[i].y, chunks[i].z, chunks[i].densities);
+                Model* newModel = new Model(terrainGPU.ConstructMeshGPU(chunks[i].x, chunks[i].y, chunks[i].z, chunks[i].densities));
+                models[i] = newModel;
                 chunksGenerated += 1;
                 chunks[i].regenerate = false;
             }
 
-            if (chunksGenerated >= 2) return;
+            if (chunksGenerated >= 4) return;
         }
 
         // GENERATE NEW CHUNKS
@@ -112,7 +115,7 @@ public:
                     auto it = chunkPosToIndex.find(pos);
                     if (it == chunkPosToIndex.end()) 
                     {
-                        Model model = terrainGPU.ConstructMeshGPU(chunkX, chunkY, chunkZ);
+                        Model* model = new Model(terrainGPU.ConstructMeshGPU(chunkX, chunkY, chunkZ));
                         models.push_back(model);
                         Chunk newChunk;
                         newChunk.x = chunkX;
@@ -156,23 +159,23 @@ public:
             if (RayIntersectsBox(ray, boundingBox))
             {
                 // LOOP OVER MODEL INDICES TO EXTRACT TRIANGLE VERTICES
-                for (int k=0; k<models[i].indices.size(); k+=3) 
+                for (int k=0; k<models[i]->indices.size(); k+=3) 
                 {
-                    int v1Index = models[i].indices[k + 0];
-                    int v2Index = models[i].indices[k + 1];
-                    int v3Index = models[i].indices[k + 2];
+                    int v1Index = models[i]->indices[k + 0];
+                    int v2Index = models[i]->indices[k + 1];
+                    int v3Index = models[i]->indices[k + 2];
                     glm::vec3 v1 = glm::vec3{
-                        models[i].vertices[v1Index * 6 + 0] + models[i].position.x, 
-                        models[i].vertices[v1Index * 6 + 1] + models[i].position.y, 
-                        models[i].vertices[v1Index * 6 + 2] + models[i].position.z};
+                        models[i]->vertices[v1Index * 6 + 0] + models[i]->position.x, 
+                        models[i]->vertices[v1Index * 6 + 1] + models[i]->position.y, 
+                        models[i]->vertices[v1Index * 6 + 2] + models[i]->position.z};
                     glm::vec3 v2 = glm::vec3{
-                        models[i].vertices[v2Index * 6 + 0] + models[i].position.x, 
-                        models[i].vertices[v2Index * 6 + 1] + models[i].position.y, 
-                        models[i].vertices[v2Index * 6 + 2] + models[i].position.z};
+                        models[i]->vertices[v2Index * 6 + 0] + models[i]->position.x, 
+                        models[i]->vertices[v2Index * 6 + 1] + models[i]->position.y, 
+                        models[i]->vertices[v2Index * 6 + 2] + models[i]->position.z};
                     glm::vec3 v3 = glm::vec3{
-                        models[i].vertices[v3Index * 6 + 0] + models[i].position.x, 
-                        models[i].vertices[v3Index * 6 + 1] + models[i].position.y, 
-                        models[i].vertices[v3Index * 6 + 2] + models[i].position.z};
+                        models[i]->vertices[v3Index * 6 + 0] + models[i]->position.x, 
+                        models[i]->vertices[v3Index * 6 + 1] + models[i]->position.y, 
+                        models[i]->vertices[v3Index * 6 + 2] + models[i]->position.z};
                     
                     // RAY TRIANGLE INTERSECTION WITH EVERY FACE
                     RayHit newhit = RayTriangleIntersection(ray, v1, v2, v3);
@@ -234,8 +237,8 @@ private:
     TerrainGPU terrainGPU;
     std::vector<Chunk> chunks;
 
-    int renderDistanceH = 15;
-    int renderDistanceV = 11;
+    int renderDistanceH = 17;
+    int renderDistanceV = 9;
     int width = 12;
     int height = 12;
 
