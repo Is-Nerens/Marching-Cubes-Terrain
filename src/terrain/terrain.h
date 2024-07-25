@@ -12,7 +12,6 @@ struct TupleHash {
         auto h1 = std::hash<T1>{}(std::get<0>(tuple));
         auto h2 = std::hash<T2>{}(std::get<1>(tuple));
         auto h3 = std::hash<T3>{}(std::get<2>(tuple));
-        // Combine hash values using a bitwise XOR and a shift
         return h1 ^ (h2 << 1) ^ (h3 << 2);
     }
 };
@@ -223,7 +222,7 @@ public:
                             if (distance <= radius) 
                             {
                                 int densityIndex = GetDensityIndex(cornerLocalX, cornerLocalY, cornerLocalZ);
-                                chunk.densities[densityIndex] += amount / distance;
+                                chunk.densities[densityIndex] += amount;
                                 chunk.regenerate = true;
                             }
                         }
@@ -237,10 +236,10 @@ private:
     TerrainGPU terrainGPU;
     std::vector<Chunk> chunks;
 
-    int renderDistanceH = 21;
+    int renderDistanceH = 11;
     int renderDistanceV = 9;
-    int width = 12;
-    int height = 12;
+    int width = 10;
+    int height = 10;
 
     int GetDensityIndex(int x, int y, int z) {
         return x + (y * (width + 1)) + (z * (width + 1) * (height + 1));

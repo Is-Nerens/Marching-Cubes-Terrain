@@ -85,7 +85,7 @@ void Init()
     // INITIALISE RENDER PIPELINE
     renderPipeline.Init();
 
-    global.DebugMode = true;
+    global.DebugMode = false;
 }
 
 int main() 
@@ -156,7 +156,7 @@ int main()
             RayHit hit = terrainSystem.Raycast(camera.position, camera.Forward());
             if (hit.hit) 
             {
-                terrainSystem.AddDensity(hit.position, 2, -0.1f * global.FRAME_TIME);
+                terrainSystem.AddDensity(hit.position, 4, 2.0f * global.FRAME_TIME);
             }
         }
 

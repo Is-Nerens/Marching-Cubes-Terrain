@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <string>
 #include <tuple>
-#include <omp.h>
 
 
 struct RayHit

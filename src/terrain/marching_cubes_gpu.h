@@ -9,7 +9,6 @@
 #include "vertex_hashmap.h"
 #include "direct_addressor.h"
 #include <vector>
-#include <omp.h>
 #include <GL/glew.h>
 #include <iostream>
 #include <functional>
@@ -168,7 +167,6 @@ public:
 		float vertOffsetZ = width * -0.5f + 0.5f;
 
         // FOR EACH CHUNK
-        #pragma omp parallel for
         for (int c=0; c<chunks.size(); ++c)
         {
             Model& model = *modelPtrs[c];

@@ -12,7 +12,7 @@ layout(binding = 1) writeonly buffer VertexBuffer {
     float vertices[];
 };
 layout(binding = 2) readonly buffer EditDensities {
-    int editDensities[];
+    float editDensities[];
 };
 layout(binding = 3) buffer DensityCache {
     float densityCache[];
