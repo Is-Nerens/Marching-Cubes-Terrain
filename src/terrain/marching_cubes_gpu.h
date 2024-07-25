@@ -176,6 +176,7 @@ public:
         {
             Model& model = *modelPtrs[c];
             std::vector<float>& vertices = chunksVertices[c];
+            
             VertexHasher vertexHasher;
             
             for (int i=0; i<vertices.size(); i+=12)

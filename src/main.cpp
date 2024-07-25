@@ -11,7 +11,6 @@
 #include <iostream>
 #include <chrono>
 
-
 struct GLOBAL
 {
     int WIDTH = 800;

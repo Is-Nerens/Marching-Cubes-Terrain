@@ -12,6 +12,12 @@ public:
         vertexMapKeys.resize(196608);
     }
 
+    ~VertexHasher()
+    {
+        vertexMap.clear();
+        vertexMapKeys.clear();
+    }
+
     void ResetIndices()
     {
         std::fill(vertexMap.begin(), vertexMap.end(), -1);

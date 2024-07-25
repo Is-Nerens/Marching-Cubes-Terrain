@@ -77,7 +77,8 @@
         "condition_variable": "cpp",
         "future": "cpp",
         "latch": "cpp",
-        "shared_mutex": "cpp"
+        "shared_mutex": "cpp",
+        "unordered_set": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
