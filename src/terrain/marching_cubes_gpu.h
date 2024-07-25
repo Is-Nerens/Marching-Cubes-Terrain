@@ -81,7 +81,7 @@ public:
         
         std::vector<unsigned int> Indices;
         std::vector<float> Vertices = std::vector<float>((width+1)*(width+1)*(height + 1) * 48 * chunks.size());
-        std::vector<float> DensityCache = std::vector<float>((width+1)*(width+1)*(height+1) * chunks.size(), -1.0f);
+        std::vector<float> DensityCache = std::vector<float>((width+1)*(width+1)*(height+1) * chunks.size());
         std::vector<float> densities;
         std::vector<int> offsets; // x0, y0, z0, x1, y1, z1...
         std::vector<int> editBooleans; // 0, 1, 1...
@@ -171,6 +171,7 @@ public:
 		float vertOffsetZ = width * -0.5f + 0.5f;
 
         // FOR EACH CHUNK
+        #pragma omp parallel for
         for (int c=0; c<chunks.size(); ++c)
         {
             Model& model = *modelPtrs[c];

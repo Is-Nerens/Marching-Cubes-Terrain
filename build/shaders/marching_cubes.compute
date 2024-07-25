@@ -260,7 +260,7 @@ float GetDensity(float x, float y, float z, int chunkIndex)
 {
     // CHECK THE DENSITY CACHE TO SEE IF DENSITY HAS ALREADY BEEN CALCULATED
     int densityIndex = GetDensityIndex(int(x), int(y), int(z), chunkIndex);
-    if (densityCache[densityIndex] != -1) {
+    if (densityCache[densityIndex] != 0) {
         return densityCache[densityIndex];
     }
 
@@ -354,6 +354,8 @@ void main()
     corners[6].position = vec3(gl_GlobalInvocationID.x + 1, gl_GlobalInvocationID.y + 1, gl_GlobalInvocationID.z    );
     corners[7].position = vec3(gl_GlobalInvocationID.x    , gl_GlobalInvocationID.y + 1, gl_GlobalInvocationID.z    );
 
+    int vertexBufferCount = (int(gl_NumWorkGroups.x)+1) * (int(gl_NumWorkGroups.y)+1) * (int(gl_NumWorkGroups.z)+1) * 48;
+
     // for each chunk to be generated
     for (int chunkIndex=0; chunkIndex<chunkCount; ++chunkIndex)
     {
@@ -366,7 +368,7 @@ void main()
         }
 
         // Default v1 x to -1 (CPU Optimisation)
-        int chunkVertexOffset = chunkIndex * (int(gl_NumWorkGroups.x)+1) * (int(gl_NumWorkGroups.y)+1) * (int(gl_NumWorkGroups.z)+1) * 48;
+        int chunkVertexOffset = chunkIndex * vertexBufferCount;
         vertices[threadID * 48      + chunkVertexOffset] = -1.0f;
         vertices[threadID * 48 + 12 + chunkVertexOffset] = -1.0f;
         vertices[threadID * 48 + 24 + chunkVertexOffset] = -1.0f;

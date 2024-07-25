@@ -91,7 +91,7 @@ public:
                 chunksGenerated += 1;
             }
 
-            if (chunksGenerated >= 4) goto endOfGenerationCheck;
+            if (chunksGenerated >= 8) goto endOfGenerationCheck;
         }
 
         // GENERATE NEW CHUNKS
