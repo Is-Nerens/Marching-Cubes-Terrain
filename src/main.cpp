@@ -161,9 +161,9 @@ int main()
         }
 
 
-        Debug::StartTimer();
+        // Debug::StartTimer();
         terrainSystem.Update(camera.position.x , camera.position.y, camera.position.z);
-        Debug::EndTimer();
+        // Debug::EndTimer();
         
 
         // RENDER PIPELINE

@@ -91,7 +91,7 @@ public:
                 chunksGenerated += 1;
             }
 
-            if (chunksGenerated >= 8) goto endOfGenerationCheck;
+            if (chunksGenerated >= 2) goto endOfGenerationCheck;
         }
 
         // GENERATE NEW CHUNKS
@@ -123,7 +123,7 @@ public:
                         chunksGenerated += 1;
                     }
 
-                    if (chunksGenerated >= 8) goto endOfGenerationCheck;
+                    if (chunksGenerated >= 2) goto endOfGenerationCheck;
                 }
             }
         }
@@ -239,8 +239,8 @@ private:
 
     int renderDistanceH = 17;
     int renderDistanceV = 9;
-    int width = 16;
-    int height = 16;
+    int width = 12;
+    int height = 12;
 
     int GetDensityIndex(int x, int y, int z) {
         return x + (y * (width + 1)) + (z * (width + 1) * (height + 1));
