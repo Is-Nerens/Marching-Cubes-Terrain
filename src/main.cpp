@@ -161,8 +161,9 @@ int main()
             }
         }
 
+        Debug::StartTimer();
         terrainSystem.Update(camera.position.x , camera.position.y, camera.position.z);
-        
+        Debug::EndTimer();
 
         // RENDER PIPELINE
         renderPipeline.Render(terrainSystem.models, camera);
