@@ -171,7 +171,6 @@ public:
 		float vertOffsetZ = width * -0.5f + 0.5f;
 
         // FOR EACH CHUNK
-        #pragma omp parallel for
         for (int c=0; c<chunks.size(); ++c)
         {
             Model& model = *modelPtrs[c];
