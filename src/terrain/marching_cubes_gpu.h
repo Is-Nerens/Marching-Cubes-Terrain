@@ -78,13 +78,12 @@ public:
     {
         glUseProgram(computeShaderProgram);
 
-        
         std::vector<unsigned int> Indices;
-        std::vector<float> Vertices = std::vector<float>((width+1)*(width+1)*(height + 1) * 48 * chunks.size());
-        std::vector<float> DensityCache = std::vector<float>((width+1)*(width+1)*(height+1) * chunks.size());
+        std::vector<float> Vertices((width + 1) * (width + 1) * (height + 1) * 48 * chunks.size(), -1.0f);
+        std::vector<float> DensityCache((width + 1) * (width + 1) * (height + 1) * chunks.size());
         std::vector<float> densities;
-        std::vector<int> offsets; // x0, y0, z0, x1, y1, z1...
-        std::vector<int> editBooleans; // 0, 1, 1...
+        std::vector<int> offsets;
+        std::vector<int> editBooleans; 
 
         for (int i=0; i<chunks.size(); ++i)
         {
@@ -134,6 +133,7 @@ public:
         glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * editBooleans.size(), editBooleans.data(), GL_STATIC_READ);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, editFlags);
 
+
         // Compute
         glUseProgram(computeShaderProgram);
         glDispatchCompute(width, height, width);
@@ -141,17 +141,14 @@ public:
         glFinish();
 
         // Copy vertex data from GPU to CPU
-        std::vector<std::vector<float>> chunksVertices(chunks.size());
+        int size = (width+1)*(width+1)*(height+1) * 48;
+        std::vector<std::vector<float>> chunksVertices(chunks.size(), std::vector<float>(size));
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, vertBuffer); 
 		GLfloat* verticesDataPtr = nullptr;
 		verticesDataPtr = (GLfloat*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
-		if (verticesDataPtr) 
-        {
-            int size = (width+1)*(width+1)*(height+1) * 48;
-            for (int i=0; i<chunks.size(); ++i)
-            {
+		if (verticesDataPtr) {
+            for (int i=0; i<chunks.size(); ++i) {
                 int index = i * size;
-                chunksVertices[i] = std::vector<float>(size);
                 std::memcpy(chunksVertices[i].data(), verticesDataPtr + index, size * sizeof(float));
             }
 			glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
@@ -176,9 +173,8 @@ public:
         {
             Model& model = *modelPtrs[c];
             std::vector<float>& vertices = chunksVertices[c];
-            
             VertexHasher vertexHasher;
-            
+
             for (int i=0; i<vertices.size(); i+=12)
             {
                 if (vertices[i] != -1.0f)

@@ -367,12 +367,7 @@ void main()
             if (corners[i].density > densityThreshold) cubeIndex |= (1 << i);
         }
 
-        // Default v1 x to -1 (CPU Optimisation)
         int chunkVertexOffset = chunkIndex * vertexBufferCount;
-        vertices[threadID * 48      + chunkVertexOffset] = -1.0f;
-        vertices[threadID * 48 + 12 + chunkVertexOffset] = -1.0f;
-        vertices[threadID * 48 + 24 + chunkVertexOffset] = -1.0f;
-        vertices[threadID * 48 + 36 + chunkVertexOffset] = -1.0f;
 
         // Fill cubeVertices and cubeNormals arrays
         int i = 0;

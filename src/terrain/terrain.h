@@ -91,7 +91,7 @@ public:
                 chunksGenerated += 1;
             }
 
-            if (chunksGenerated >= 2) goto endOfGenerationCheck;
+            if (chunksGenerated >= 4) goto endOfGenerationCheck;
         }
 
         // GENERATE NEW CHUNKS
@@ -123,7 +123,7 @@ public:
                         chunksGenerated += 1;
                     }
 
-                    if (chunksGenerated >= 2) goto endOfGenerationCheck;
+                    if (chunksGenerated >= 4) goto endOfGenerationCheck;
                 }
             }
         }
@@ -237,7 +237,7 @@ private:
     TerrainGPU terrainGPU;
     std::vector<Chunk> chunks;
 
-    int renderDistanceH = 17;
+    int renderDistanceH = 21;
     int renderDistanceV = 9;
     int width = 12;
     int height = 12;

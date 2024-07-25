@@ -2,27 +2,18 @@
 
 #include <iostream>
 #include <functional>
+#include <cstring>
+#include <cstring>
 
 class VertexHasher
 {
 public:
     VertexHasher()
+        : vertexMap(32768),        // Create vertexMap with 32768 elements
+          vertexMapKeys(98304)    // Create vertexMapKeys with 98304 elements
     {
-        vertexMap.resize(65536, -1);
-        vertexMapKeys.resize(196608);
-    }
-
-    ~VertexHasher()
-    {
-        vertexMap.clear();
-        vertexMapKeys.clear();
-    }
-
-    void ResetIndices()
-    {
-        std::fill(vertexMap.begin(), vertexMap.end(), -1);
-        std::fill(vertexMapKeys.begin(), vertexMapKeys.end(), 0.0f);
-        maxProbeDistance = 0;
+        // Initialize vertexMap with -1 using std::memset
+        std::memset(vertexMap.data(), -1, vertexMap.size() * sizeof(int));
     }
 
     unsigned int GetVertexIndex(float x, float y, float z)
@@ -31,7 +22,7 @@ public:
 
         for (int i = 0; i < maxProbeDistance + 1; ++i)
         {
-            int index = (keyIndex + i) % 65536;
+            int index = (keyIndex + i) % 32768;
             if (vertexMapKeys[index * 3] == x &&
                 vertexMapKeys[index * 3 + 1] == y &&
                 vertexMapKeys[index * 3 + 2] == z)
@@ -49,7 +40,7 @@ public:
 
         for (int i = 0; i < maxProbeDistance + 1; ++i)
         {
-            int index = (keyIndex + i) % 65536;
+            int index = (keyIndex + i) % 32768;
             if (vertexMapKeys[index * 3] == x &&
                 vertexMapKeys[index * 3 + 1] == y &&
                 vertexMapKeys[index * 3 + 2] == z)
@@ -60,9 +51,9 @@ public:
         }
 
         int stepCount = 0;
-        while (stepCount < 65536)
+        while (stepCount < 32768)
         {
-            int index = (keyIndex + stepCount) % 65536;
+            int index = (keyIndex + stepCount) % 32768;
             if (vertexMap[index] == -1)
             {
                 vertexMapKeys[index * 3] = x;
@@ -90,7 +81,7 @@ private:
         size_t hash = h1;
         hash ^= h2 + 0x9e3779b9 + (hash << 6) + (hash >> 2);
         hash ^= h3 + 0x9e3779b9 + (hash << 6) + (hash >> 2);
-        return hash % 65536;
+        return hash % 32768;
     }
 };
 
