@@ -223,7 +223,7 @@ public:
                             if (distance <= radius) 
                             {
                                 int densityIndex = GetDensityIndex(cornerLocalX, cornerLocalY, cornerLocalZ);
-                                chunk.densities[densityIndex] += amount / distance;
+                                chunk.densities[densityIndex] += amount;
                                 chunk.regenerate = true;
                             }
                         }
@@ -237,10 +237,10 @@ private:
     TerrainGPU terrainGPU;
     std::vector<Chunk> chunks;
 
-    int renderDistanceH = 21;
+    int renderDistanceH = 17;
     int renderDistanceV = 11;
-    int width = 16;
-    int height = 16;
+    int width = 12;
+    int height = 12;
 
     int GetDensityIndex(int x, int y, int z) {
         return x + (y * (width + 1)) + (z * (width + 1) * (height + 1));

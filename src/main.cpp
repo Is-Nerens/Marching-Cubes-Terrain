@@ -85,7 +85,7 @@ void Init()
     // INITIALISE RENDER PIPELINE
     renderPipeline.Init();
 
-    global.DebugMode = true;
+    global.DebugMode = false;
 }
 
 int main() 
