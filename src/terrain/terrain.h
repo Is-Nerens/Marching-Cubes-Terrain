@@ -84,11 +84,11 @@ public:
         // GENERATE 8 CHUNKS PER FRAME
         int chunksGenerated = 0;
 
-        // REGENERATE CHUNKS
+        // REGENERATE CHUNKS - EXCLUDE OUTERMOST
         for (int i=0; i<chunks.size(); ++i) {
-            bool inRenderDist = chunks[i].x >= minChunkX && chunks[i].x <= maxChunkX && 
-                                chunks[i].y >= minChunkY && chunks[i].y <= maxChunkY && 
-                                chunks[i].z >= minChunkZ && chunks[i].z <= maxChunkZ;
+            bool inRenderDist = chunks[i].x > minChunkX && chunks[i].x < maxChunkX && 
+                                chunks[i].y > minChunkY && chunks[i].y < maxChunkY && 
+                                chunks[i].z > minChunkZ && chunks[i].z < maxChunkZ;
 
             // REGENERATE CHUNK
             if (inRenderDist && chunks[i].regenerate)

@@ -2,7 +2,6 @@
 #include "Input.h"
 #include "render_pipeline.h"
 #include "camera.h"
-#include "utils.h"
 #include "filesystem.h"
 #include "terrain/terrain.h"
 #include "raycast.h"
@@ -18,6 +17,8 @@ struct GLOBAL
     int WIDTH = 800;
     int HEIGHT = 600;
     float FRAME_TIME;
+    bool DebugMode = false;
+    std::vector<float> frameRates;
 };
 
 
@@ -84,6 +85,8 @@ void Init()
 
     // INITIALISE RENDER PIPELINE
     renderPipeline.Init();
+
+    global.DebugMode = true;
 }
 
 int main() 
@@ -109,8 +112,8 @@ int main()
     TerrainSystem terrainSystem;
 
     // MAIN UPDATE LOOP
-    while (window.isOpen()) {
-        Debug::StartTimer();
+    while (window.isOpen()) 
+    {
         auto start = std::chrono::high_resolution_clock::now();
         window.clear();
         ProcessInput();
@@ -164,6 +167,15 @@ int main()
         // RENDER PIPELINE
         renderPipeline.Render(terrainSystem.models, camera);
 
+        // DRAW FRAMERATE DEBUG
+        if (global.DebugMode) {
+            // Reset GL states for SFML
+            window.pushGLStates();
+            window.resetGLStates();
+            LineGraph(window, global.frameRates, 20, 20, 800, 200, 0, 120);
+            window.popGLStates();
+        }
+
         // DISPLAY RENDERED FRAME
         window.display();
 
@@ -171,12 +183,18 @@ int main()
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
         global.FRAME_TIME = duration.count();
+
+        // ADD FRAME RATE TO GLOBAL FRAME RATES VECTOR
+        global.frameRates.push_back(1 / global.FRAME_TIME);
+        if (global.frameRates.size() > 100){
+            global.frameRates.erase(global.frameRates.begin());
+        }
+
+        // DRAW FPS IN WINDOW TOOLBAR
         std::stringstream ss;
         ss << "SFML window - FPS: " << std::fixed << std::setprecision(0) << 1 / global.FRAME_TIME;
         std::string title = ss.str();
         window.setTitle(title);
-
-        // Debug::EndTimer();
     }
 
     return EXIT_SUCCESS;
