@@ -99,7 +99,7 @@ public:
                 chunks[i].regenerate = false;
             }
 
-            if (chunksGenerated >= 4) return;
+            if (chunksGenerated >= 8) return;
         }
 
         // GENERATE NEW CHUNKS
