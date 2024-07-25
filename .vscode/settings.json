@@ -73,7 +73,11 @@
         "cstdarg": "cpp",
         "filesystem": "cpp",
         "codecvt": "cpp",
-        "array": "cpp"
+        "array": "cpp",
+        "condition_variable": "cpp",
+        "future": "cpp",
+        "latch": "cpp",
+        "shared_mutex": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

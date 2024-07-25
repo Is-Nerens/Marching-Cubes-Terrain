@@ -32,16 +32,16 @@ the GPU perlin noise system needs to have octaves and a surface
 i could shave off 2 - 3 ms if i improve the vertex hash speed
 */
 
-struct EditedChunk 
+struct Chunk 
 {
-    int x, y, z;
-    int densityCount;
+    int x;
+    int y;
+    int z;
+    bool checked = false;
+    bool regenerate = false;
     std::vector<float> densities;
-
-    EditedChunk(int chunkWidth=0, int chunkHeight=0)
-    {
-        densityCount = (chunkWidth + 1) * (chunkWidth + 1) * (chunkHeight + 1);
-        densities.resize(densityCount, 0.0f);
+    ~Chunk() {
+        densities.clear();
     }
 };
 
@@ -54,7 +54,7 @@ public:
 	TerrainGPU()
 	{
         // LOAD COMPUTESHADER FROM FILE
-        std::string compShaderSource = LoadShader("./shaders/marching_cubes.compute");
+        std::string compShaderSource = LoadShader("./shaders/marching_cubes_v2.compute");
         computeShaderProgram = CreateComputeShader(compShaderSource);
 
         // LOAD TRI TABLE
@@ -65,7 +65,7 @@ public:
         glGenBuffers(1, &triTableMemory);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, triTableMemory);
         glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * 4096, TriTableValues.data(), GL_STATIC_READ); 
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, triTableMemory);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, triTableMemory);
 	}
 
     ~TerrainGPU()
@@ -74,130 +74,183 @@ public:
         glDeleteBuffers(1, &triTableMemory);
     }
 
-	Model ConstructMeshGPU(int x, int y, int z, const std::vector<float>& densities = {})
-	{
+    void GenerateMeshes(std::vector<Chunk*>& chunks, std::vector<Model*>& modelPtrs)
+    {
         glUseProgram(computeShaderProgram);
 
-		Model model;
+        
         std::vector<unsigned int> Indices;
-        std::vector<float> Vertices = std::vector<float>((width + 1) * (width + 1) * (height + 1) * 48);
-        std::vector<float> DensityCache = std::vector<float>((width+1)*(width+1)*(height+1), -1.0f);
-        VertexHasher::ResetIndices();
+        std::vector<float> Vertices = std::vector<float>((width+1)*(width+1)*(height + 1) * 48 * chunks.size());
+        std::vector<float> DensityCache = std::vector<float>((width+1)*(width+1)*(height+1) * chunks.size(), -1.0f);
+        std::vector<float> densities;
+        std::vector<int> offsets; // x0, y0, z0, x1, y1, z1...
+        std::vector<int> editBooleans; // 0, 1, 1...
+
+        for (int i=0; i<chunks.size(); ++i)
+        {
+            offsets.push_back(chunks[i]->x);
+            offsets.push_back(chunks[i]->y);
+            offsets.push_back(chunks[i]->z);
+            editBooleans.push_back(chunks[i]->densities.size()>0);
+
+            for (int j=0; j<chunks[i]->densities.size(); ++j) {
+                densities.push_back(chunks[i]->densities[j]);
+            }
+        }
 
         // shader uniforms
         BindUniformFloat1(computeShaderProgram, "densityThreshold", densityThreshold);
-        BindUniformInt1(computeShaderProgram, "offsetX", x);
-        BindUniformInt1(computeShaderProgram, "offsetY", y);
-        BindUniformInt1(computeShaderProgram, "offsetZ", z);
-        BindUniformInt1(computeShaderProgram, "densityCount", densities.size());
+        BindUniformInt1(computeShaderProgram, "chunkCount", chunks.size());
 
-        GLuint vbo1, vbo3, vbo4; 
+        GLuint vertBuffer, densityBuffer, densityCache, offsetsBuffer, editFlags; 
 
-		// Bind buffer for vertices
-		glGenBuffers(1, &vbo1);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo1);
+        // Bind buffer for vertices
+		glGenBuffers(1, &vertBuffer);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, vertBuffer);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * Vertices.size(), Vertices.data(), GL_DYNAMIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, vbo1);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vertBuffer);
 
         // Bind buffer for densities
-        glGenBuffers(1, &vbo3);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo3);
+        glGenBuffers(1, &densityBuffer);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, densityBuffer);
         glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * densities.size(), densities.data(), GL_STATIC_READ);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, vbo3);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, densityBuffer);
 
         // Bind buffer for density cache
-        glGenBuffers(1, &vbo4);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo4);
+        glGenBuffers(1, &densityCache);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, densityCache);
         glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * DensityCache.size(), DensityCache.data(), GL_DYNAMIC_DRAW);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, vbo4);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, densityCache);
 
-        // use compute shader
+        // Bind buffer for chunk offsets
+        glGenBuffers(1, &offsetsBuffer);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, offsetsBuffer);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * offsets.size(), offsets.data(), GL_STATIC_READ);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, offsetsBuffer);
+
+        // Bind buffer for edit flags
+        glGenBuffers(1, &editFlags);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, editFlags);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * editBooleans.size(), editBooleans.data(), GL_STATIC_READ);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, editFlags);
+
+        // Compute
         glUseProgram(computeShaderProgram);
         glDispatchCompute(width, height, width);
         glMemoryBarrier(GL_ALL_BARRIER_BITS);
         glFinish();
 
-		// Copy vertex data from GPU to CPU
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, vbo1); 
+        // Copy vertex data from GPU to CPU
+        std::vector<std::vector<float>> chunksVertices(chunks.size());
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, vertBuffer); 
 		GLfloat* verticesDataPtr = nullptr;
 		verticesDataPtr = (GLfloat*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
-		if (verticesDataPtr) {
-			Vertices.assign(verticesDataPtr, verticesDataPtr + Vertices.size());
+		if (verticesDataPtr) 
+        {
+            int size = (width+1)*(width+1)*(height+1) * 48;
+            for (int i=0; i<chunks.size(); ++i)
+            {
+                int index = i * size;
+                std::cout << index << std::endl;
+                chunksVertices[i] = std::vector<float>(size);
+                std::memcpy(chunksVertices[i].data(), verticesDataPtr + index, size * sizeof(float));
+            }
 			glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 		}
 
-        // free GPU memory
-        glDeleteBuffers(1, &vbo1);
-        glDeleteBuffers(1, &vbo3);
-        glDeleteBuffers(1, &vbo4);
+        // Free GPU memory
+        glDeleteBuffers(1, &vertBuffer);
+        glDeleteBuffers(1, &densityBuffer);
+        glDeleteBuffers(1, &densityCache);
+        glDeleteBuffers(1, &offsetsBuffer);
+        glDeleteBuffers(1, &editFlags);
 
-		float vertOffsetX = width * -0.5f + 0.5f;
-		float vertOffsetY = width * -0.5f + 0.5f;
+
+        // CPU OPERATIONS - CLEANING RAW VERTEX DATA 
+        float vertOffsetX = width * -0.5f + 0.5f;
+		float vertOffsetY = height * -0.5f + 0.5f;
 		float vertOffsetZ = width * -0.5f + 0.5f;
 
-        // set model vertices and indices
-        for (int i=0; i<Vertices.size(); i+=12)
+        // FOR EACH CHUNK
+        for (int c=0; c<chunks.size(); ++c)
         {
-            if (Vertices[i] != -1.0f)
+            Model& model = *modelPtrs[c];
+            std::vector<float>& vertices = chunksVertices[c];
+            VertexHasher vertexHasher;
+
+            if (c > 0)
             {
-                // vertex 1
-                if (VertexHasher::GetVertexIndex(Vertices[i], Vertices[i+1], Vertices[i+2]) == -1)
+                for (int i=0; i<vertices.size(); ++i)
                 {
-                    VertexHasher::SetVertexIndex(Vertices[i], Vertices[i+1], Vertices[i+2], model.VertexCount());
-                    model.indices.push_back(model.VertexCount());
-                    model.vertices.push_back(Vertices[i] + vertOffsetX);
-                    model.vertices.push_back(Vertices[i+1] + vertOffsetY);
-                    model.vertices.push_back(Vertices[i+2] + vertOffsetZ);
-                    model.vertices.push_back(Vertices[i+9]);
-                    model.vertices.push_back(Vertices[i+10]);
-                    model.vertices.push_back(Vertices[i+11]);
-                }
-                else
-                {
-                    model.indices.push_back(VertexHasher::GetVertexIndex(Vertices[i], Vertices[i+1], Vertices[i+2]));
-                }
-
-                // vertex 2
-                if (VertexHasher::GetVertexIndex(Vertices[i+3], Vertices[i+4], Vertices[i+5]) == -1)
-                {
-                    VertexHasher::SetVertexIndex(Vertices[i+3], Vertices[i+4], Vertices[i+5], model.VertexCount());
-                    model.indices.push_back(model.VertexCount());
-                    model.vertices.push_back(Vertices[i+3] + vertOffsetX);
-                    model.vertices.push_back(Vertices[i+4] + vertOffsetY);
-                    model.vertices.push_back(Vertices[i+5] + vertOffsetZ);
-                    model.vertices.push_back(Vertices[i+9]);
-                    model.vertices.push_back(Vertices[i+10]);
-                    model.vertices.push_back(Vertices[i+11]);
-                }
-                else
-                {
-                    model.indices.push_back(VertexHasher::GetVertexIndex(Vertices[i+3], Vertices[i+4], Vertices[i+5]));
-                }
-
-                // vertex 3
-                if (VertexHasher::GetVertexIndex(Vertices[i+6], Vertices[i+7], Vertices[i+8]) == -1)
-                {
-                    VertexHasher::SetVertexIndex(Vertices[i+6], Vertices[i+7], Vertices[i+8], model.VertexCount());
-                    model.indices.push_back(model.VertexCount());
-                    model.vertices.push_back(Vertices[i+6] + vertOffsetX);
-                    model.vertices.push_back(Vertices[i+7] + vertOffsetY);
-                    model.vertices.push_back(Vertices[i+8] + vertOffsetZ);
-                    model.vertices.push_back(Vertices[i+9]);
-                    model.vertices.push_back(Vertices[i+10]);
-                    model.vertices.push_back(Vertices[i+11]);
-                }
-                else
-                {
-                    model.indices.push_back(VertexHasher::GetVertexIndex(Vertices[i+6], Vertices[i+7], Vertices[i+8]));
+                    std::cout << vertices[i] << " ";
                 }
             }
-        }
+            
+            for (int i=0; i<vertices.size(); i+=12)
+            {
+                if (vertices[i] != -1.0f)
+                {
+                    // vertex 1
+                    if (vertexHasher.GetVertexIndex(vertices[i], vertices[i+1], vertices[i+2]) == -1)
+                    {
+                        vertexHasher.SetVertexIndex(vertices[i], vertices[i+1], vertices[i+2], model.VertexCount());
+                        model.indices.push_back(model.VertexCount());
+                        model.vertices.push_back(vertices[i] + vertOffsetX);
+                        model.vertices.push_back(vertices[i+1] + vertOffsetY);
+                        model.vertices.push_back(vertices[i+2] + vertOffsetZ);
+                        model.vertices.push_back(vertices[i+9]);
+                        model.vertices.push_back(vertices[i+10]);
+                        model.vertices.push_back(vertices[i+11]);
+                    }
+                    else
+                    {
+                        model.indices.push_back(vertexHasher.GetVertexIndex(vertices[i], vertices[i+1], vertices[i+2]));
+                    }
 
-		model.position = {x, y, z};
-        model.boundingBox.min = glm::vec3(x + width/2, y + height/2, z + width/2);
-        model.boundingBox.max = glm::vec3(x - width/2, y - height/2, z - width/2);
-        model.boundingBox.isFilled = true;
-        return model;
+                    // vertex 2
+                    if (vertexHasher.GetVertexIndex(vertices[i+3], vertices[i+4], vertices[i+5]) == -1)
+                    {
+                        vertexHasher.SetVertexIndex(vertices[i+3], vertices[i+4], vertices[i+5], model.VertexCount());
+                        model.indices.push_back(model.VertexCount());
+                        model.vertices.push_back(vertices[i+3] + vertOffsetX);
+                        model.vertices.push_back(vertices[i+4] + vertOffsetY);
+                        model.vertices.push_back(vertices[i+5] + vertOffsetZ);
+                        model.vertices.push_back(vertices[i+9]);
+                        model.vertices.push_back(vertices[i+10]);
+                        model.vertices.push_back(vertices[i+11]);
+                    }
+                    else
+                    {
+                        model.indices.push_back(vertexHasher.GetVertexIndex(vertices[i+3], vertices[i+4], vertices[i+5]));
+                    }
+
+                    // vertex 3
+                    if (vertexHasher.GetVertexIndex(vertices[i+6], vertices[i+7], vertices[i+8]) == -1)
+                    {
+                        vertexHasher.SetVertexIndex(vertices[i+6], vertices[i+7], vertices[i+8], model.VertexCount());
+                        model.indices.push_back(model.VertexCount());
+                        model.vertices.push_back(vertices[i+6] + vertOffsetX);
+                        model.vertices.push_back(vertices[i+7] + vertOffsetY);
+                        model.vertices.push_back(vertices[i+8] + vertOffsetZ);
+                        model.vertices.push_back(vertices[i+9]);
+                        model.vertices.push_back(vertices[i+10]);
+                        model.vertices.push_back(vertices[i+11]);
+                    }
+                    else
+                    {
+                        model.indices.push_back(vertexHasher.GetVertexIndex(vertices[i+6], vertices[i+7], vertices[i+8]));
+                    }
+                }
+            }
+
+            if (!chunks[c]->regenerate)
+            {
+                model.position = {chunks[c]->x, chunks[c]->y, chunks[c]->z};
+                model.boundingBox.min = glm::vec3(chunks[c]->x + width/2, chunks[c]->y + height/2, chunks[c]->z + width/2);
+                model.boundingBox.max = glm::vec3(chunks[c]->x - width/2, chunks[c]->y - height/2, chunks[c]->z - width/2);
+                model.boundingBox.isFilled = true;
+            }
+        }
     }
 
 private:
