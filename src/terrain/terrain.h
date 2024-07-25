@@ -91,7 +91,7 @@ public:
                 chunksGenerated += 1;
             }
 
-            if (chunksGenerated >= 1) goto endOfGenerationCheck;
+            if (chunksGenerated >= 4) goto endOfGenerationCheck;
         }
 
         // GENERATE NEW CHUNKS
@@ -118,68 +118,16 @@ public:
                         Model* model = new Model;
                         models.push_back(model);
 
-                        chunksToGeneratePtrs.push_back(&newChunk);
+                        chunksToGeneratePtrs.push_back(&chunks[chunks.size()-1]);
                         modelsToGeneratePtrs.push_back(model);
                         chunksGenerated += 1;
                     }
 
-                    if (chunksGenerated >= 2) goto endOfGenerationCheck;
+                    if (chunksGenerated >= 4) goto endOfGenerationCheck;
                 }
             }
         }
         endOfGenerationCheck:
-
-
-        // // GENERATE 8 CHUNKS PER FRAME
-        // int chunksGenerated = 0;
-
-        // // REGENERATE CHUNKS - EXCLUDE OUTERMOST
-        // for (int i=0; i<chunks.size(); ++i) {
-        //     bool inRenderDist = chunks[i].x > minChunkX && chunks[i].x < maxChunkX && 
-        //                         chunks[i].y > minChunkY && chunks[i].y < maxChunkY && 
-        //                         chunks[i].z > minChunkZ && chunks[i].z < maxChunkZ;
-
-        //     // REGENERATE CHUNK
-        //     if (inRenderDist && chunks[i].regenerate)
-        //     {
-        //         Model* newModel = new Model(terrainGPU.ConstructMeshGPU(chunks[i].x, chunks[i].y, chunks[i].z, chunks[i].densities));
-        //         models[i] = newModel;
-        //         chunksGenerated += 1;
-        //         chunks[i].regenerate = false;
-        //     }
-
-        //     if (chunksGenerated >= 4) return;
-        // }
-
-        // // GENERATE NEW CHUNKS
-        // for (int y=0; y <renderDistanceV; ++y) {
-        //     for (int x=0; x <renderDistanceH; ++x) {
-        //         for (int z=0; z<renderDistanceH; ++z) {
-        //             int chunkX = (x * width)  + minChunkX;
-        //             int chunkY = (y * height) + minChunkY;
-        //             int chunkZ = (z * width)  + minChunkZ;
-
-        //             // NO CHUNK AT LOCATION -> GENERATE ONE
-        //             auto pos = std::make_tuple(chunkX, chunkY, chunkZ);
-        //             auto it = chunkPosToIndex.find(pos);
-        //             if (it == chunkPosToIndex.end()) 
-        //             {
-        //                 Model* model = new Model(terrainGPU.ConstructMeshGPU(chunkX, chunkY, chunkZ));
-        //                 models.push_back(model);
-        //                 Chunk newChunk;
-        //                 newChunk.x = chunkX;
-        //                 newChunk.y = chunkY;
-        //                 newChunk.z = chunkZ;
-        //                 newChunk.densities = std::vector<float>((width+1)*(width+1)*(height+1), 0.0f);
-        //                 chunks.push_back(newChunk);
-        //                 chunkPosToIndex[std::make_tuple(chunkX, chunkY, chunkZ)] = chunks.size() -1;
-        //                 chunksGenerated += 1;
-        //             }
-
-        //             if (chunksGenerated >= 2) return;
-        //         }
-        //     }
-        // }
 
         // GENERATE ALL CHUNKS
         terrainGPU.GenerateMeshes(chunksToGeneratePtrs, modelsToGeneratePtrs);

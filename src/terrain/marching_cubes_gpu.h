@@ -54,7 +54,7 @@ public:
 	TerrainGPU()
 	{
         // LOAD COMPUTESHADER FROM FILE
-        std::string compShaderSource = LoadShader("./shaders/marching_cubes_v2.compute");
+        std::string compShaderSource = LoadShader("./shaders/marching_cubes.compute");
         computeShaderProgram = CreateComputeShader(compShaderSource);
 
         // LOAD TRI TABLE
@@ -151,7 +151,6 @@ public:
             for (int i=0; i<chunks.size(); ++i)
             {
                 int index = i * size;
-                std::cout << index << std::endl;
                 chunksVertices[i] = std::vector<float>(size);
                 std::memcpy(chunksVertices[i].data(), verticesDataPtr + index, size * sizeof(float));
             }
@@ -172,19 +171,12 @@ public:
 		float vertOffsetZ = width * -0.5f + 0.5f;
 
         // FOR EACH CHUNK
+        #pragma omp parallel for
         for (int c=0; c<chunks.size(); ++c)
         {
             Model& model = *modelPtrs[c];
             std::vector<float>& vertices = chunksVertices[c];
             VertexHasher vertexHasher;
-
-            if (c > 0)
-            {
-                for (int i=0; i<vertices.size(); ++i)
-                {
-                    std::cout << vertices[i] << " ";
-                }
-            }
             
             for (int i=0; i<vertices.size(); i+=12)
             {
@@ -243,13 +235,10 @@ public:
                 }
             }
 
-            if (!chunks[c]->regenerate)
-            {
-                model.position = {chunks[c]->x, chunks[c]->y, chunks[c]->z};
-                model.boundingBox.min = glm::vec3(chunks[c]->x + width/2, chunks[c]->y + height/2, chunks[c]->z + width/2);
-                model.boundingBox.max = glm::vec3(chunks[c]->x - width/2, chunks[c]->y - height/2, chunks[c]->z - width/2);
-                model.boundingBox.isFilled = true;
-            }
+            model.position = {chunks[c]->x, chunks[c]->y, chunks[c]->z};
+            model.boundingBox.min = glm::vec3(chunks[c]->x + width/2, chunks[c]->y + height/2, chunks[c]->z + width/2);
+            model.boundingBox.max = glm::vec3(chunks[c]->x - width/2, chunks[c]->y - height/2, chunks[c]->z - width/2);
+            model.boundingBox.isFilled = true;
         }
     }
 
