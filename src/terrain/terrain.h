@@ -127,7 +127,7 @@ public:
                         chunksGenerated += 1;
                     }
 
-                    if (chunksGenerated >= 4) return;
+                    if (chunksGenerated >= 8) return;
                 }
             }
         }
