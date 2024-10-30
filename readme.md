@@ -8,4 +8,4 @@ Features
 
 TODO
 - Defer chunk generation to a separate thread to avoid blocking the main thread
-- Fix chunk seams (normals) by calculating overlaps
+- Fix chunk seams (normals) by generating overlaps
