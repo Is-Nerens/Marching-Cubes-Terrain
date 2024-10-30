@@ -1,4 +1,4 @@
-![Marching Cubes Terrain](https://github.com/NoodlePlexium/NoodlePlexium/blob/main/Marching%20Cubes%20Terrain.jpg)
+![Marching Cubes Terrain](https://github.com/NoodlePlexium/Marching-Cubes-Terrain/blob/main/Marching%20Cubes%20Terrain%20Image.jpg)
 
 
 TODO
