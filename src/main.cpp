@@ -156,7 +156,7 @@ int main()
             RayHit hit = terrainSystem.Raycast(camera.position, camera.Forward());
             if (hit.hit) 
             {
-                terrainSystem.AddDensity(hit.position, 4, -2.0f * global.FRAME_TIME);
+                terrainSystem.AddDensity(hit.position, 3, -1.5f * global.FRAME_TIME);
             }
         }
 

@@ -238,7 +238,7 @@ private:
     std::vector<Chunk> chunks;
 
     int renderDistanceH = 17;
-    int renderDistanceV = 11;
+    int renderDistanceV = 9;
     int width = 12;
     int height = 12;
 

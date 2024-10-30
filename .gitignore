@@ -1,5 +1,5 @@
-libs/SFML/*
-libs/glew/*
+libs/
 src/vendor/glm/*
+backup/
 textures*
 build/textures*
