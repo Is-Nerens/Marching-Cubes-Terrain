@@ -1,4 +1,4 @@
-![Marching Cubes Terrain](https://github.com/NoodlePlexium/Marching-Cubes-Terrain/blob/main/Marching%20Cubes%20Terrain%20Image.jpg)
+![Marching Cubes Terrain](https://github.com/Is-Nerens/Marching-Cubes-Terrain/blob/main/Marching%20Cubes%20Terrain%20Image.jpg)
 
 Features
 - GPU Chunk Generation
