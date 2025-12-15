@@ -1,0 +1,5 @@
+build
+.vscode
+lib/cglm
+lib/glew
+lib/SDL3
