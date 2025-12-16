@@ -10,8 +10,17 @@ typedef struct Mesh {
     GLuint VAO;
     GLuint VBO;
     GLuint IBO;
+    mat4 meshMatrix;
     bool uploaded;
 } Mesh;
+
+void MeshSetPosition(Mesh* mesh, float x, float y, float z)
+{
+    mat4 identity;
+    glm_mat4_identity(identity);
+    vec3 position = { x, y, z };
+    glm_translate_to(identity, position, mesh->meshMatrix);
+}
 
 void MeshInit(Mesh* mesh, size_t vertexCapacity, size_t indexCapacity)
 {
@@ -21,6 +30,7 @@ void MeshInit(Mesh* mesh, size_t vertexCapacity, size_t indexCapacity)
     mesh->indexCount = 0;
     mesh->vertexBuffer = malloc(6 * sizeof(float) * vertexCapacity);
     mesh->indexBuffer = malloc(sizeof(uint32_t) * indexCapacity);
+    MeshSetPosition(mesh, 0.0f, 0.0f, 0.0f);
     mesh->uploaded = false;
 }
 
@@ -83,7 +93,6 @@ void MeshFreeGPU(Mesh* mesh)
     mesh->IBO = 0;
 }
 
-
 void MeshGrowVertexCapacity(Mesh* mesh)
 {
     mesh->vertexCapacity *= 2;
@@ -94,12 +103,6 @@ void MeshGrowIndexCapacity(Mesh* mesh)
 {
     mesh->indexCapacity *= 2;
     mesh->indexBuffer = realloc(mesh->indexBuffer, mesh->indexCapacity * sizeof(uint32_t));
-}
-
-void MeshDraw(Mesh* mesh)
-{
-    glBindVertexArray(mesh->VAO);
-    glDrawElements(GL_TRIANGLES, mesh->indexCount, GL_UNSIGNED_INT, NULL);
 }
 
 inline void MeshAddFace(Mesh* mesh, vec3 v1, vec3 v2, vec3 v3, vec3 normal)

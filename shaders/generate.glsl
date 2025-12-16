@@ -6,6 +6,8 @@ uniform float densityThreshold;
 uniform float chunkX;
 uniform float chunkY;
 uniform float chunkZ;
+uniform int cubes;
+uniform int partitionSubdivisions;
 
 layout(binding = 0) readonly buffer TriTableBuffer {
     int TriTable[];
@@ -16,6 +18,10 @@ layout(binding = 1) writeonly buffer VertexBuffer {
 layout(binding = 2) readonly buffer EditDensities {
     float editDensities[];
 };
+layout(binding = 3) coherent buffer PartitionOccupancy {
+    int partitionOccupancyFlags[];
+};
+
 
 // cornerIndexAFromEdge array
 const int cornerIndexAFromEdge[12] = int[](0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3);
@@ -268,16 +274,19 @@ void main()
     int threadID = globalPos.x + 
                    globalPos.y * gridDims.x + 
                    globalPos.z * gridDims.x * gridDims.y;
+    int partitions = int(pow(8.0, partitionSubdivisions));
+    int cubesPerPartition = cubes / partitions;
+    int partitionIndex = threadID / cubesPerPartition;
 
     vec4 corners[8];
-    corners[0] = vec4(globalPos.x    , globalPos.y    , globalPos.z + 1, 0);
-    corners[1] = vec4(globalPos.x + 1, globalPos.y    , globalPos.z + 1, 0);
-    corners[2] = vec4(globalPos.x + 1, globalPos.y    , globalPos.z    , 0);
-    corners[3] = vec4(globalPos.x    , globalPos.y    , globalPos.z    , 0);
-    corners[4] = vec4(globalPos.x    , globalPos.y + 1, globalPos.z + 1, 0);
-    corners[5] = vec4(globalPos.x + 1, globalPos.y + 1, globalPos.z + 1, 0);
-    corners[6] = vec4(globalPos.x + 1, globalPos.y + 1, globalPos.z    , 0);
-    corners[7] = vec4(globalPos.x    , globalPos.y + 1, globalPos.z    , 0);
+    corners[0] = vec4(globalPos.x + 1, globalPos.y + 1, globalPos.z + 2, 0);
+    corners[1] = vec4(globalPos.x + 2, globalPos.y + 1, globalPos.z + 2, 0);
+    corners[2] = vec4(globalPos.x + 2, globalPos.y + 1, globalPos.z + 1, 0);
+    corners[3] = vec4(globalPos.x + 1, globalPos.y + 1, globalPos.z + 1, 0);
+    corners[4] = vec4(globalPos.x + 1, globalPos.y + 2, globalPos.z + 2, 0);
+    corners[5] = vec4(globalPos.x + 2, globalPos.y + 2, globalPos.z + 2, 0);
+    corners[6] = vec4(globalPos.x + 2, globalPos.y + 2, globalPos.z + 1, 0);
+    corners[7] = vec4(globalPos.x + 1, globalPos.y + 2, globalPos.z + 1, 0);
 
     int cubeIndex = 0;
     for (int i=0; i<8; i++)
@@ -303,11 +312,16 @@ void main()
         vec3 normal = CalculateNormal(v1, v2, v3);
         AddFace(v1, v2, v3, normal, vertexIndex + i * 4);
         i += 3;
+
+        // mark partition as "containing mesh vertices"
+        int word = partitionIndex >> 5;
+        int bit  = partitionIndex & 31;
+        atomicOr(partitionOccupancyFlags[word], 1 << (31 - bit));
     }
 
     // set remaining vertices with empty values
     int cubeVerticesRemainingStart = threadID * 48;
     for (int j=i*4; j<48; ++j) {
-        vertices[cubeVerticesRemainingStart + j] = 1000000.0f;
+        vertices[cubeVerticesRemainingStart + j] = 0.0f;
     }
 }

@@ -5,7 +5,7 @@ $glewInclude = "lib\glew\include"
 $glewLib = "lib\glew\lib"
 $libInclude = "lib"
 
-clang -std=c99 -O2 main.c `
+clang -std=c99 -O2 src/main.c `
 -I"$glewInclude" `
 -I"$sdlInclude" `
 -I"$libInclude" `

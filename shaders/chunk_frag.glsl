@@ -25,7 +25,7 @@ void main() {
     float stoneTextureScale = 0.125;
     float grassTextureScale = 0.16;
     float ambientStrength = 0.2;
-    float normalMapStrength = 0.4;
+    float normalMapStrength = 0.1;
 
 
 
