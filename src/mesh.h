@@ -3,26 +3,18 @@
 typedef struct Mesh {
     float* vertexBuffer;
     uint32_t* indexBuffer;
-    size_t vertexCapacity;
-    size_t indexCapacity;
-    size_t vertexCount;
-    size_t indexCount;
+    uint32_t vertexCapacity;
+    uint32_t indexCapacity;
+    uint32_t vertexCount;
+    uint32_t indexCount;
     GLuint VAO;
     GLuint VBO;
     GLuint IBO;
-    mat4 meshMatrix;
+    float x, y, z;
     bool uploaded;
 } Mesh;
 
-void MeshSetPosition(Mesh* mesh, float x, float y, float z)
-{
-    mat4 identity;
-    glm_mat4_identity(identity);
-    vec3 position = { x, y, z };
-    glm_translate_to(identity, position, mesh->meshMatrix);
-}
-
-void MeshInit(Mesh* mesh, size_t vertexCapacity, size_t indexCapacity)
+void MeshInit(Mesh* mesh, uint32_t vertexCapacity, uint32_t indexCapacity)
 {
     mesh->vertexCapacity = vertexCapacity;
     mesh->indexCapacity = indexCapacity;
@@ -30,7 +22,9 @@ void MeshInit(Mesh* mesh, size_t vertexCapacity, size_t indexCapacity)
     mesh->indexCount = 0;
     mesh->vertexBuffer = malloc(6 * sizeof(float) * vertexCapacity);
     mesh->indexBuffer = malloc(sizeof(uint32_t) * indexCapacity);
-    MeshSetPosition(mesh, 0.0f, 0.0f, 0.0f);
+    mesh->x = 0.0f;
+    mesh->y = 0.0f;
+    mesh->z = 0.0f;
     mesh->uploaded = false;
 }
 
@@ -57,7 +51,6 @@ void MeshClearCPU(Mesh* mesh)
 
 void MeshUploadToGPU(Mesh* mesh)
 {
-    // generate buffers
     if (!mesh->uploaded)
     {
         glGenVertexArrays(1, &mesh->VAO);
@@ -74,11 +67,13 @@ void MeshUploadToGPU(Mesh* mesh)
     }
 
     // upload data
-    mesh->uploaded = true;
+    glBindVertexArray(mesh->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
-    glBufferData(GL_ARRAY_BUFFER, mesh->vertexCount * sizeof(float) * 6, mesh->vertexBuffer, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, mesh->vertexCount * 6 * sizeof(float), mesh->vertexBuffer, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->IBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->indexCount * sizeof(uint32_t), mesh->indexBuffer, GL_DYNAMIC_DRAW);
+    glBindVertexArray(0);
+    mesh->uploaded = true;
 }
 
 void MeshFreeGPU(Mesh* mesh)
@@ -116,7 +111,7 @@ inline void MeshAddFace(Mesh* mesh, vec3 v1, vec3 v2, vec3 v3, vec3 normal)
     }
 
     // v1
-    size_t vert_i = mesh->vertexCount * 6; 
+    uint32_t vert_i = mesh->vertexCount * 6; 
     mesh->vertexBuffer[vert_i   ]   = v1[0];
     mesh->vertexBuffer[vert_i + 1 ] = v1[1];
     mesh->vertexBuffer[vert_i + 2 ] = v1[2];
@@ -161,7 +156,7 @@ inline void MeshChunkGenerateAddFace(Mesh* mesh, float* verts)
     }
 
     // v1
-    size_t vert_i = mesh->vertexCount * 6; 
+    uint32_t vert_i = mesh->vertexCount * 6; 
     mesh->vertexBuffer[vert_i   ]   = verts[0];
     mesh->vertexBuffer[vert_i + 1 ] = verts[1];
     mesh->vertexBuffer[vert_i + 2 ] = verts[2];

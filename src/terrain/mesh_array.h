@@ -8,118 +8,142 @@
 #include <stdlib.h>
 
 
-// This data structure holds an array of mesh objects
-// A generic index can be set to allow fast mesh lookups
-
 typedef struct MeshArray {
     Mesh* meshes;
+    Mesh* reserve;
     uint32_t size;
     uint32_t capacity;
+    uint32_t reserveSize;
+    uint32_t reserveCapacity;
+    uint32_t keySize;
     Hashmap index;
-    char* keys;
-    bool indexAvailable;
+    void* keys;
 } MeshArray;
 
 void MeshArray_Init(MeshArray* array, uint32_t capacity, uint32_t keySize)
 {
     array->capacity = MAX(capacity, 2);
+    array->reserveCapacity = 5;
     array->meshes = (Mesh*)malloc(sizeof(Mesh) * array->capacity);
+    array->reserve = (Mesh*)malloc(array->reserveCapacity * sizeof(Mesh));
+    array->keys = malloc(keySize * capacity);
     array->size = 0;
+    array->reserveSize = 0;
+    array->keySize = keySize;
 
-    if (keySize > 0)
-    {
-        Hashmap_Init(&array->index, keySize, sizeof(uint32_t), array->capacity);
-        array->keys = malloc(array->capacity * keySize);
-        array->indexAvailable = true;
-    }
-    else
-    {
-        array->keys = NULL;
-        array->indexAvailable = false;
-    }
+    Hashmap_Init(&array->index, keySize, sizeof(uint32_t), array->capacity);
 }
 
 void MeshArray_Free(MeshArray* array)
 {
-    free(array->meshes);
-    if (array->indexAvailable) {
-        Hashmap_Free(&array->index);
-        free(array->keys);
+    // free mesh memory
+    for (uint32_t i=0; i<array->size; i++)
+    {
+        Mesh* mesh = &array->meshes[i];
+        MeshFree(mesh);
     }
+    for (uint32_t i=0; i<array->reserveSize; i++)
+    {
+        Mesh* mesh = &array->reserve[i];
+        MeshFree(mesh);
+    }
+
+    free(array->meshes);
+    free(array->reserve);
+    free(array->keys);
+    Hashmap_Free(&array->index);
     array->meshes = NULL;
-    array->keys = NULL;
-    array->capacity = 0;
+    array->reserve = NULL;
     array->size = 0;
+    array->capacity = 0;
+    array->reserveSize = 0;
+    array->reserveCapacity = 0;
 }
 
 void MeshArray_Push(MeshArray* array, Mesh* mesh, void* key)
 {
+    // grow
     if (array->size == array->capacity) {
         array->capacity *= 2;
         array->meshes = (Mesh*)realloc(array->meshes, array->capacity * sizeof(Mesh));
-        if (array->indexAvailable) array->keys = (char*)realloc(array->keys, array->capacity * array->index.key_size);
+        array->keys = realloc(array->keys, array->capacity * array->keySize);
     }
+
+    Hashmap_Set(&array->index, key, &array->size);
+
+    // copy mesh + increase size
     array->meshes[array->size] = *mesh;
+    memcpy((char*)array->keys + array->keySize * array->size, key, array->keySize);
     array->size++;
-
-    if (array->indexAvailable && key)
-    {
-        uint32_t index = array->size - 1;
-        void* dstKey = array->keys + index * array->index.key_size;
-        memcpy(dstKey, key, array->index.key_size);
-        Hashmap_Set(&array->index, dstKey, &index);
-    }
 }
 
-Mesh* MeshArray_CreateInplace(MeshArray* array, void* key)
+Mesh* MeshArray_Create(MeshArray* array, void* key)
 {
+    // grow
     if (array->size == array->capacity) {
         array->capacity *= 2;
         array->meshes = (Mesh*)realloc(array->meshes, array->capacity * sizeof(Mesh));
-        if (array->indexAvailable) array->keys = (char*)realloc(array->keys, array->capacity * array->index.key_size);
+        array->keys = realloc(array->keys, array->capacity * array->keySize);
     }
-    Mesh* newMesh = &array->meshes[array->size];
-    array->size++;
 
-    if (array->indexAvailable && key)
-    {
-        uint32_t index = array->size - 1;
-        void* dstKey = array->keys + index * array->index.key_size;
-        memcpy(dstKey, key, array->index.key_size);
-        Hashmap_Set(&array->index, dstKey, &index);
+    Hashmap_Set(&array->index, key, &array->size);
+
+    // reuse reserved mesh
+    if (array->reserveSize > 0) {
+        Mesh* reserved = &array->reserve[array->reserveSize - 1];
+        array->meshes[array->size] = *reserved;
+        array->reserveSize--;
     }
-    return newMesh;
+    // create new mesh
+    else
+    {  
+        Mesh* newMesh = &array->meshes[array->size];
+        MeshInit(newMesh, 1000, 1000);
+    }
+
+    // copy key
+    memcpy((char*)array->keys + array->keySize * array->size, key, array->keySize);
+
+    array->size++;
+    return &array->meshes[array->size-1];
 }
 
-void MeshArray_DeleteBackfill(MeshArray* array, uint32_t index)
+void MeshArray_Delete(MeshArray* array, uint32_t index)
 {
-    if (index >= array->size) return;
-
-    uint32_t lastIndex = array->size - 1;
-
-    if (array->indexAvailable)
-    {
-        void* deadKey = array->keys + index * array->index.key_size;
-        Hashmap_Delete(&array->index, deadKey);
+    // grow reserve
+    if (array->reserveSize == array->reserveCapacity) {
+        array->reserveCapacity *= 2;
+        array->reserve = (Mesh*)realloc(array->reserve, array->reserveCapacity * sizeof(Mesh));
     }
 
-    if (index == lastIndex)
+    // store mesh in reserve
+    Mesh* mesh = &array->meshes[index];
+    MeshClearCPU(mesh);
+    array->reserve[array->reserveSize] = *mesh;
+    array->reserveSize++;
+
+    // get key of mesh to delete
+    char* deletedKey = (char*)array->keys + index * array->keySize;
+
+    // remove deleted from index
+    Hashmap_Delete(&array->index, deletedKey);
+
+    if (index == array->size-1) 
     {
         array->size--;
-        return;
     }
-
-    array->meshes[index] = array->meshes[lastIndex];
-
-    if (array->indexAvailable)
+    else 
     {
-        void* dstKey = array->keys + index * array->index.key_size;
-        void* srcKey = array->keys + lastIndex * array->index.key_size;
-        memcpy(dstKey, srcKey, array->index.key_size);
-        Hashmap_Set(&array->index, dstKey, &index);
-    }
+        char* movedKey = (char*)array->keys + (array->size - 1) * array->keySize;
 
-    array->size--;
+        // move last mesh into hole
+        array->meshes[index] = array->meshes[array->size-1];
+        memcpy(deletedKey, movedKey, array->keySize);
+        
+        // update index of moved
+        Hashmap_Set(&array->index, movedKey, &index);
+        array->size--;
+    }
 }
 
 Mesh* MeshArray_Get(MeshArray* array, uint32_t index)
@@ -135,14 +159,27 @@ Mesh* MeshArray_KeyGet(MeshArray* array, void* key)
     return &array->meshes[index];
 }
 
+void* MeshArray_GetKey(MeshArray* array, uint32_t index)
+{
+    return (char*)array->keys + index * array->keySize;
+}
+
 bool MeshArray_Contains(MeshArray* array, void* key)
 {
-    void* found = Hashmap_Get(&array->index, key);
-    return found != NULL;
+    return Hashmap_Contains(&array->index, key);
 }
 
 void MeshArray_Clear(MeshArray* array)
 {
+    // move all meshes to reserve
+    for (uint32_t i=0; i<array->size; i++)
+    {
+        Mesh* mesh = &array->meshes[i];
+        MeshClearCPU(mesh);
+        MeshFreeGPU(mesh);
+        array->reserve[array->reserveSize] = *mesh;
+        array->reserveSize++;
+    }
     array->size = 0;
-    if (array->indexAvailable) Hashmap_Clear(&array->index);
+    Hashmap_Clear(&array->index);
 }

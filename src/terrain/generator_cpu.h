@@ -1,5 +1,5 @@
 #pragma once
-#include "mesh.h"
+#include "../mesh.h"
 #include "tables.h"
 #include "perlin.h"
 

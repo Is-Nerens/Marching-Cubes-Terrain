@@ -59,7 +59,7 @@ void CameraInit(Camera* camera)
     CameraUpdate(camera);
 }
 
-void CameraMouseMove(Camera* camera, float dx, float dy)
+void CameraMouseLook(Camera* camera, float dx, float dy)
 {
     camera->yaw -= dx * 0.002f * 180.0f;
     camera->pitch -= dy * 0.002f * 180.0f;
@@ -93,11 +93,11 @@ void CameraMove(Camera* camera, float deltaTime)
         glm_vec3_add(move, camera->right, move);
     }
     if (state[SDL_SCANCODE_E]) {
-        glm_vec3_add(move, camera->up, move);
+        vec3 up = { 0.0f, 1.0f, 0.0f };
+        glm_vec3_add(move, up, move);
     }
     if (state[SDL_SCANCODE_Q]) {
-        vec3 down;
-        glm_vec3_scale(camera->up, -1.0f, down);
+        vec3 down = { 0.0f, -1.0f, 0.0f };
         glm_vec3_add(move, down, move);
     }
     glm_vec3_normalize(move);

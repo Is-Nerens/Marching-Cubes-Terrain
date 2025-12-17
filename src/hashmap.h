@@ -27,15 +27,15 @@ typedef struct Hashmap
 
 void Hashmap_Init(Hashmap* hmap, uint32_t key_size, uint32_t item_size, uint32_t capacity)
 {
-    capacity = max(capacity, 10); // Ensure capacity for at least 10 elements
+    capacity = MAX(capacity, 10); // Ensure capacity for at least 10 elements
 
-    // Calculate number of bytes needed for occupancy bit array
-    uint32_t occupancy_remainder = capacity & 7; // capacity % 8 
-    uint32_t occupancy_bytes = capacity >> 3;    // capacity / 8
+    // allocate space for occupancy bit array
+    uint32_t occupancy_remainder = capacity & 7;
+    uint32_t occupancy_bytes = capacity >> 3;
     if (occupancy_remainder != 0) occupancy_bytes += 1;
-
-    // Allocate space for occupancy bit array and sparse data array
     hmap->occupancy = calloc(occupancy_bytes, 1); 
+
+    // Allocate space for sparse data array
     hmap->data = malloc((key_size + item_size) * capacity);
 
     // Initialise tracking variables
@@ -43,7 +43,7 @@ void Hashmap_Init(Hashmap* hmap, uint32_t key_size, uint32_t item_size, uint32_t
     hmap->item_size = item_size;
     hmap->item_count = 0;
     hmap->capacity = capacity;
-    hmap->max_probes = 0;
+    hmap->max_probes = 1;
 }
 
 // FNV algorithm https://github.com/aappleby/smhasher/blob/master/src/Hashes.cpp
@@ -58,29 +58,43 @@ static uint32_t Hash_Generic(void* key, uint32_t len) // FNV algorithm https://g
     return hash;
 }
 
+inline uint8_t Hashmap_Slot_Present(Hashmap* hmap, uint32_t i)
+{
+    return hmap->occupancy[i >> 3] & (1u << (i & 7));
+}
+
+inline void Hashmap_Mark_Slot(Hashmap* hmap, uint32_t i)
+{
+    hmap->occupancy[i >> 3] |= (uint8_t)(1 << (i & 7));
+}
+
+inline void Hashmap_Clear_Slot(Hashmap* hmap, uint32_t i)
+{
+    hmap->occupancy[i >> 3] &= ~(1u << (i & 7));
+}
+
 void Hashmap_Resize_Add(Hashmap* hmap, void* key, void* value)
 {
     uint32_t probes = 0;
     uint32_t hash = Hash_Generic(key, hmap->key_size);
     while (probes < hmap->capacity) {
         uint32_t i = (hash + probes) % hmap->capacity;
-        uint32_t rem = i & 7; // i % 8
-        uint32_t occupancy_index = i >> 3; // i / 8
 
-        if (!(hmap->occupancy[occupancy_index] & (uint8_t)(1 << rem))) { // Found empty slot
-            hmap->occupancy[occupancy_index] |= (uint8_t)(1 << rem);     // Mark occupied
+        if (!Hashmap_Slot_Present(hmap, i)) { // Found empty slot
 
-            // --- Set key and data ---
+            // set key and data
             char* base = (char*)hmap->data + i * (hmap->key_size + hmap->item_size);
             memcpy(base, key, hmap->key_size);
             memcpy(base + hmap->key_size, value, hmap->item_size);
 
+            // mark slot and increase item count
+            Hashmap_Mark_Slot(hmap, i);
             hmap->item_count++;
             break;
         }
         probes++;
     }
-    hmap->max_probes = max(hmap->max_probes, probes);
+    hmap->max_probes = MAX(hmap->max_probes, probes + 1);
 }
 
 void Hashmap_Resize(Hashmap* hmap)
@@ -91,8 +105,8 @@ void Hashmap_Resize(Hashmap* hmap)
 
     // Resize
     hmap->capacity *= 2;
-    uint32_t occupancy_remainder = hmap->capacity & 7; // hmap->capacity % 8
-    uint32_t occupancy_bytes = hmap->capacity >> 3; // hmap->capacity / 8
+    uint32_t occupancy_remainder = hmap->capacity & 7;
+    uint32_t occupancy_bytes = hmap->capacity >> 3;
     if (occupancy_remainder != 0) occupancy_bytes += 1;
     hmap->occupancy = calloc(occupancy_bytes, 1);
     hmap->data = malloc(hmap->capacity * (hmap->key_size + hmap->item_size));
@@ -101,9 +115,9 @@ void Hashmap_Resize(Hashmap* hmap)
 
     // Re-insert all old items
     for (uint32_t i=0; i<old_capacity; i++) {
-        uint32_t rem = i & 7; // i % 8
-        uint32_t occupancy_index = i >> 3; // i / 8
-        if (old_occupancy[occupancy_index] & (1u << rem)) // Found item
+
+        uint8_t is_present = old_occupancy[i >> 3] & (1u << (i & 7));
+        if (is_present) // Found item
         { 
             char* base = (char*)old_data + i * (hmap->key_size + hmap->item_size);
             void* key = base;
@@ -120,13 +134,9 @@ int Hashmap_Contains(Hashmap* hmap, void* key)
 {
     uint32_t probes = 0;
     uint32_t hash = Hash_Generic(key, hmap->key_size);
-    uint32_t max_probes = min(hmap->capacity, hmap->max_probes + 1);
-    while (probes < max_probes) {
+    while (probes < hmap->max_probes) {
         uint32_t i = (hash + probes) % hmap->capacity;
-        uint32_t rem = i & 7; // i % 8
-        uint32_t occupancy_index = i >> 3; // i / 8
-
-        if (hmap->occupancy[occupancy_index] & (1u << rem)) { // Found item
+        if (Hashmap_Slot_Present(hmap, i)) { // Found item
             
             // Check if key matches
             char* base = (char*)hmap->data + i * (hmap->key_size + hmap->item_size);
@@ -147,13 +157,9 @@ void* Hashmap_Get(Hashmap* hmap, void* key)
 {
     uint32_t probes = 0;
     uint32_t hash = Hash_Generic(key, hmap->key_size);
-    uint32_t max_probes = min(hmap->capacity, hmap->max_probes + 1);
-    while (probes < max_probes) {
+    while (probes < hmap->max_probes) {
         uint32_t i = (hash + probes) % hmap->capacity;
-        uint32_t rem = i & 7; // i % 8
-        uint32_t occupancy_index = i >> 3; // i / 8
-
-        if (hmap->occupancy[occupancy_index] & (1u << rem)) { // Found item
+        if (Hashmap_Slot_Present(hmap, i)) { // Found item
             
             // Check if key matches
             char* base = (char*)hmap->data + i * (hmap->key_size + hmap->item_size);
@@ -173,22 +179,28 @@ void* Hashmap_Get(Hashmap* hmap, void* key)
 
 void Hashmap_Set(Hashmap* hmap, void* key, void* value)
 {
-    // Resize if surpased max load factor 
+    // Resize if surpassed max load factor 
     if ((float)hmap->item_count / (float)hmap->capacity > 0.5f) {
         Hashmap_Resize(hmap);
     }
 
     uint32_t probes = 0;
     uint32_t hash = Hash_Generic(key, hmap->key_size);
-    while (probes < hmap->capacity) {
+    while (probes < hmap->max_probes) {
         uint32_t i = (hash + probes) % hmap->capacity;
-        uint32_t rem = i & 7; // i % 8
-        uint32_t occupancy_index = i >> 3; // i / 8
 
-        if (!(hmap->occupancy[occupancy_index] & (1u << rem))) { // Found empty slot
-            hmap->occupancy[occupancy_index] |= (uint8_t)(1 << rem); // Mark occupied
+        if (Hashmap_Slot_Present(hmap, i)) {
+            char* base = (char*)hmap->data + i * (hmap->key_size + hmap->item_size);
+            if (memcmp(base, key, hmap->key_size) == 0) {
+                memcpy(base + hmap->key_size, value, hmap->item_size);
+                return;
+            }
+        } 
+        else 
+        {
+            Hashmap_Mark_Slot(hmap, i);
             
-            // --- Set key and data ---
+            // set key and value
             char* base = (char*)hmap->data + i * (hmap->key_size + hmap->item_size);
             memcpy(base, key, hmap->key_size);
             memcpy(base + hmap->key_size, value, hmap->item_size);
@@ -198,73 +210,68 @@ void Hashmap_Set(Hashmap* hmap, void* key, void* value)
         }
         probes++;
     }
-    hmap->max_probes = max(hmap->max_probes, probes);
+    hmap->max_probes = MAX(hmap->max_probes, probes + 1);
 }
 
 void Hashmap_Delete(Hashmap* hmap, void* key)
 {
     uint32_t probes = 0;
     uint32_t hash = Hash_Generic(key, hmap->key_size);
-    uint32_t max_probes = min(hmap->capacity, hmap->max_probes + 1);
-    int found_index = -1;
-    int last_collision_match = -1;
-    while (probes < max_probes) {
+
+    int holeIndex = -1;
+    while(probes < hmap->max_probes) 
+    {
         uint32_t i = (hash + probes) % hmap->capacity;
-        uint32_t rem = i & 7; // i % 8
-        uint32_t occupancy_index = i >> 3; // i / 8
-        uint8_t is_present = hmap->occupancy[occupancy_index] & (1u << rem);
 
-        if (found_index == -1 && is_present) { // Found item
-            
-            // Check if key matches
-            void* check_key = hmap->data + i * (hmap->key_size + hmap->item_size);
-            if (memcmp(check_key, key, hmap->key_size) == 0) { // Found correct item -> delete
-                hmap->occupancy[occupancy_index] &= ~(1u << rem); // Mark as free
-                found_index = (int)i;
-                hmap->item_count--;
-            }
-        } 
-        else if (found_index != -1 && is_present) // Check if this one hashes to the same value
-        {
-            void* candidate_key = (char*)hmap->data + i * (hmap->key_size + hmap->item_size);
-            uint32_t candidate_hash = Hash_Generic(candidate_key, hmap->key_size);
-            if ((candidate_hash % hmap->capacity) == (uint32_t)found_index) 
-            {
-                last_collision_match = (int)i;
-            }
-            else if (last_collision_match != -1) // Backfill data and exit early 
-            { 
-                // Backfill data and exit
-                uint32_t rem_from = last_collision_match & 7;
-                uint32_t occupancy_index_from = last_collision_match >> 3;
-                uint32_t rem_to = found_index & 7;
-                uint32_t occupancy_index_to = found_index >> 3;
-                memcpy((char*)hmap->data + found_index * (hmap->key_size + hmap->item_size),
-                    (char*)hmap->data + last_collision_match * (hmap->key_size + hmap->item_size),
-                    hmap->key_size + hmap->item_size);
-                hmap->occupancy[occupancy_index_from] &= ~(1u << rem_from); // old slot free
-                hmap->occupancy[occupancy_index_to] |= (1u << rem_to); 
-                return;
+        if (Hashmap_Slot_Present(hmap, i)) {
+            void* check_key = (char*)hmap->data + i * (hmap->key_size + hmap->item_size);
+            if (memcmp(check_key, key, hmap->key_size) == 0) {
+                holeIndex = (int)i;
+                Hashmap_Clear_Slot(hmap, i);
+                break;
             }
         }
-        else if (found_index != -1 && !is_present) 
-        {
-            if (last_collision_match == -1) return; // No backfill necessary
+        else break;
 
-            // Backfill data and exit
-            uint32_t rem_from = last_collision_match & 7;
-            uint32_t occupancy_index_from = last_collision_match >> 3;
-            uint32_t rem_to = found_index & 7;
-            uint32_t occupancy_index_to = found_index >> 3;
-            memcpy((char*)hmap->data + found_index * (hmap->key_size + hmap->item_size),
-                (char*)hmap->data + last_collision_match * (hmap->key_size + hmap->item_size),
-                hmap->key_size + hmap->item_size);
-            hmap->occupancy[occupancy_index_from] &= ~(1u << rem_from); // old slot free
-            hmap->occupancy[occupancy_index_to] |= (1u << rem_to); 
-            return;
-        }
         probes++;
     }
+
+    if (holeIndex == -1) return; // key not found
+
+    uint32_t i = (holeIndex + 1) % hmap->capacity;
+    while (Hashmap_Slot_Present(hmap, i)) 
+    {
+        void* candidate_key = (char*)hmap->data + i * (hmap->key_size + hmap->item_size);
+        uint32_t candidate_hash = Hash_Generic(candidate_key, hmap->key_size);
+        uint32_t candidate_home = candidate_hash % hmap->capacity;
+
+        // Can the candidate move into the hole?
+        bool canMoveCandidate;
+        if (holeIndex <= i)
+            canMoveCandidate = (candidate_home <= holeIndex || candidate_home > i);
+        else
+            canMoveCandidate = (candidate_home <= holeIndex && candidate_home > i);
+
+        if (!canMoveCandidate) {
+            i = (i + 1) % hmap->capacity;
+            continue;
+        }
+
+        // Move candidate into hole
+        memcpy(
+            (char*)hmap->data + holeIndex * (hmap->key_size + hmap->item_size),
+            candidate_key,
+            hmap->key_size + hmap->item_size
+        );
+
+        Hashmap_Clear_Slot(hmap, i);
+        Hashmap_Mark_Slot(hmap, holeIndex);
+
+        holeIndex = i;
+        i = (i + 1) % hmap->capacity;
+    }
+
+    hmap->item_count--;
 }
 
 void Hashmap_Iterate_Begin(Hashmap* hmap)
@@ -281,18 +288,16 @@ void Hashmap_Iterate_Get(Hashmap* hmap, void** return_key, void** return_val)
 {
     if (hmap->item_count == 0) 
     {
-        return_key = NULL;
-        return_val = NULL;
+        *return_key = NULL;
+        *return_val = NULL;
     }
 
     // Probe until next item is found
     while(hmap->iterate_index < hmap->capacity)
     {
-        uint32_t rem = hmap->iterate_index & 7; // i % 8
-        uint32_t occupancy_index = hmap->iterate_index >> 3; // i / 8
 
         // Found item -> return pointer
-        if (hmap->occupancy[occupancy_index] & (1u << rem)) { 
+        if (Hashmap_Slot_Present(hmap, hmap->iterate_index)) { 
             char* base = (char*)hmap->data + hmap->iterate_index * (hmap->key_size + hmap->item_size);
             hmap->iterate_index++;
             *return_key = base;
@@ -304,8 +309,8 @@ void Hashmap_Iterate_Get(Hashmap* hmap, void** return_key, void** return_val)
     }
 
     // Error
-    return_key = NULL;
-    return_val = NULL;
+    *return_key = NULL;
+    *return_val = NULL;
     return;
 }
 
@@ -313,12 +318,10 @@ void Hashmap_Clear(Hashmap* hmap)
 {
     if (hmap->capacity == 0) return;
 
-    // Calculate number of bytes needed for occupancy bit array
-    uint32_t occupancy_remainder = hmap->capacity & 7; // capacity % 8 
-    uint32_t occupancy_bytes = hmap->capacity >> 3;    // capacity / 8
-    if (occupancy_remainder != 0) occupancy_bytes += 1;
-
     // Set occupancy bits to 0
+    uint32_t occupancy_remainder = hmap->capacity & 7;
+    uint32_t occupancy_bytes = hmap->capacity >> 3;
+    if (occupancy_remainder != 0) occupancy_bytes += 1;
     memset(hmap->occupancy, 0, occupancy_bytes);
     
     // Clear items
@@ -329,4 +332,8 @@ void Hashmap_Free(Hashmap* hmap)
 {
     free(hmap->occupancy);
     free(hmap->data);
+    hmap->occupancy = NULL;
+    hmap->data = NULL;
+    hmap->capacity = 0;
+    hmap->item_count = 0;
 }

@@ -26,7 +26,7 @@ void TextureLoadFile(Texture* texture, char* filepath)
 void TextureFree(Texture* texture)
 {
     glDeleteTextures(1, &texture->handle);
-    free(texture->buffer);
+    if (texture->buffer) stbi_image_free(texture->buffer);
     texture->buffer = NULL;
     texture->width = 0;
     texture->height = 0;

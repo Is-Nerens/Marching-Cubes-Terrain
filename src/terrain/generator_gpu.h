@@ -3,8 +3,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <math.h>
-#include "mesh.h"
-#include "shader.h"
+#include "../mesh.h"
+#include "../shader.h"
 #include "tables.h"
 
 typedef struct GeneratorGPU {
@@ -73,7 +73,7 @@ void GeneratorGPUGenerateChunk(GeneratorGPU* generator, Mesh* mesh, float x, flo
     int cubes = generator->chunkSize * generator->chunkSize * generator->chunkSize;
     MeshClearCPU(mesh);
     glUseProgram(generator->computeShaderProgram);
-    glUniform1f(generator->densityThresholdLocation, 0.2f);
+    glUniform1f(generator->densityThresholdLocation, 0.7f);
     glUniform1f(generator->chunkXLocation, x);
     glUniform1f(generator->chunkYLocation, y);
     glUniform1f(generator->chunkZLocation, z);
@@ -95,13 +95,11 @@ void GeneratorGPUGenerateChunk(GeneratorGPU* generator, Mesh* mesh, float x, flo
     // get pointer to partition occupancy buffer
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->partitionOccupancyBuffer); 
     GLint* partitionOccupancyFlags = (GLint*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
-    glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 
     // get pointer to raw vertex data output
     int vertexCount = generator->chunkSize * generator->chunkSize * generator->chunkSize * 48;
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->vertexBuffer); 
     GLfloat* rawVertexData = (GLfloat*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
-    glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 
     // generate mesh
     int partitions = (int)pow(8.0, (double)3);
@@ -125,5 +123,13 @@ void GeneratorGPUGenerateChunk(GeneratorGPU* generator, Mesh* mesh, float x, flo
             }
         }
     }
-    MeshSetPosition(mesh, x, y, z);
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->vertexBuffer);
+    glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->partitionOccupancyBuffer);
+    glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+
+    mesh->x = x;
+    mesh->y = y;
+    mesh->z = z;
 }

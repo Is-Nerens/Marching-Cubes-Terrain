@@ -19,8 +19,16 @@ void TerrainRendererInit(TerrainRenderer* renderer)
     renderer->modelMatrixUniformLocation = glGetUniformLocation(renderer->shaderProgram, "u_ModelPositionMatrix");
     TextureLoadFile(&renderer->rockAlbedo, "textures/rock_albedo.jpg");
     TextureLoadFile(&renderer->rockNormal, "textures/rock_normal.jpg");
-    TextureLoadFile(&renderer->rockAlbedo, "textures/grass_albedo.jpg");
-    TextureLoadFile(&renderer->rockNormal, "textures/grass_normal.jpg");
+    TextureLoadFile(&renderer->grassAlbedo, "textures/grass_albedo.jpg");
+    TextureLoadFile(&renderer->grassNormal, "textures/grass_normal.jpg");
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, renderer->rockAlbedo.handle);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, renderer->rockNormal.handle);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, renderer->grassAlbedo.handle);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, renderer->grassNormal.handle);
     glUniform1i(glGetUniformLocation(renderer->shaderProgram, "u_rock_albedo_texture"), 0); 
     glUniform1i(glGetUniformLocation(renderer->shaderProgram, "u_rock_normal_texture"), 1); 
     glUniform1i(glGetUniformLocation(renderer->shaderProgram, "u_grass_albedo_texture"), 2); 
@@ -43,13 +51,20 @@ void DrawTerrain(TerrainRenderer* renderer, Terrain* terrain, Camera* camera)
     {
         Mesh* mesh = MeshArray_Get(&terrain->chunks, i);
 
+        // compute mesh matrix
+        mat4 identity;
+        mat4 meshMatrix;
+        glm_mat4_identity(identity);
+        vec3 position = { mesh->x, mesh->y, mesh->z };
+        glm_translate_to(identity, position, meshMatrix);
+
         // compute mvp
         mat4 mvp;
-        glm_mat4_mul(camera->projectionViewMatrix, mesh->meshMatrix, mvp);
+        glm_mat4_mul(camera->projectionViewMatrix, meshMatrix, mvp);
 
         // set shader uniforms
         glUniformMatrix4fv(renderer->mvpUniformLocation, 1, GL_FALSE, (const GLfloat*)mvp);
-        glUniformMatrix4fv(renderer->modelMatrixUniformLocation, 1, GL_FALSE, (const GLfloat*)mesh->meshMatrix);
+        glUniformMatrix4fv(renderer->modelMatrixUniformLocation, 1, GL_FALSE, (const GLfloat*)meshMatrix);
         glUniform3fv(renderer->cameraPosUniformLocation, 1, camera->position);
 
         // draw

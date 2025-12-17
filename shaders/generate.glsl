@@ -73,17 +73,21 @@ int TriTableGet(int cubeIndex, int i)
 
 vec3 RandomGradient3D(int ix, int iy, int iz)
 {
-    uint h = uint(ix*374761393 + iy*668265263 + iz*2147483647u);
+    uint h = uint(ix)*374761393u + uint(iy)*668265263u + uint(iz)*2147483647u;
     h = (h ^ (h >> 13u)) * 1274126177u;
-    h = h ^ (h >> 16u);
-    float theta = float(h & 0xFFFFu) / 65535.0 * 2.0 * 3.14159265;  // azimuth
-    float phi   = float((h >> 16u) & 0xFFFFu) / 65535.0 * 3.14159265; // inclination
-    vec3 gradient;
-    gradient.x = sin(phi) * cos(theta);
-    gradient.y = sin(phi) * sin(theta);
-    gradient.z = cos(phi);
-    return gradient;
+    h ^= (h >> 16u);
+    float u = float(h & 0xFFFFu) / 65535.0;          // [0,1]
+    float v = float((h >> 16u) & 0xFFFFu) / 65535.0; // [0,1]
+    float theta = u * 2.0 * 3.14159;
+    float z = v * 2.0 - 1.0;     // cos(phi) ∈ [-1,1]
+    float r = sqrt(1.0 - z*z);
+    return vec3(
+        r * cos(theta),
+        r * sin(theta),
+        z
+    );
 }
+
 
 vec2 RandomGradient2D(int ix, int iy)
 {
@@ -202,9 +206,9 @@ float GetSurfaceHeight(float x, float z)
 
 float GetCaveDensity(float x, float y, float z)
 {
-    float sx = (x + chunkX) * 10.0;
-    float sy = (y + chunkY) * 10.0;
-    float sz = (z + chunkZ) * 10.0;
+    float sx = (x + chunkX) * 0.05;
+    float sy = (y + chunkY) * 0.05;
+    float sz = (z + chunkZ) * 0.05;
     return Perlin3D(sx, sy, sz) 
     + Perlin3D(sx * 2, sy * 2, sz * 2) * 0.5 
     + Perlin3D(sx * 4, sy * 4, sz * 4) * 0.25
