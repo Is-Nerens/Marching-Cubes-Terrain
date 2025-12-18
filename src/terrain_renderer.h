@@ -21,18 +21,28 @@ void TerrainRendererInit(TerrainRenderer* renderer)
     TextureLoadFile(&renderer->rockNormal, "textures/rock_normal.jpg");
     TextureLoadFile(&renderer->grassAlbedo, "textures/grass_albedo.jpg");
     TextureLoadFile(&renderer->grassNormal, "textures/grass_normal.jpg");
+    GLint rockAlbedoLoc = glGetUniformLocation(renderer->shaderProgram, "u_rock_albedo_texture");
+    GLint rockNormalLoc = glGetUniformLocation(renderer->shaderProgram, "u_rock_normal_texture");
+    GLint grassAlbedoLoc = glGetUniformLocation(renderer->shaderProgram, "u_grass_albedo_texture");
+    GLint grassNormalLoc = glGetUniformLocation(renderer->shaderProgram, "u_grass_normal_texture");
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, renderer->rockAlbedo.handle);
+    glUniform1i(rockAlbedoLoc, 0);
+
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, renderer->rockNormal.handle);
+    glUniform1i(rockNormalLoc, 1);
+
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, renderer->grassAlbedo.handle);
+    glUniform1i(grassAlbedoLoc, 2);
+
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, renderer->grassNormal.handle);
-    glUniform1i(glGetUniformLocation(renderer->shaderProgram, "u_rock_albedo_texture"), 0); 
-    glUniform1i(glGetUniformLocation(renderer->shaderProgram, "u_rock_normal_texture"), 1); 
-    glUniform1i(glGetUniformLocation(renderer->shaderProgram, "u_grass_albedo_texture"), 2); 
-    glUniform1i(glGetUniformLocation(renderer->shaderProgram, "u_grass_normal_texture"), 3); 
+    glUniform1i(grassNormalLoc, 3);
+    printf("rockAlbedo=%u, rockNormal=%u, grassAlbedo=%u, grassNormal=%u\n",
+       renderer->rockAlbedo.handle, renderer->rockNormal.handle,
+       renderer->grassAlbedo.handle, renderer->grassNormal.handle);
 }
 
 void TerrainRendererFree(TerrainRenderer* renderer)

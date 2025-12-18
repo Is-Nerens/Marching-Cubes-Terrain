@@ -29,38 +29,20 @@ const int cornerIndexAFromEdge[12] = int[](0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3);
 // cornerIndexBFromEdge array
 const int cornerIndexBFromEdge[12] = int[](1, 2, 3, 0, 5, 6, 7, 4, 4, 5, 6, 7);
 
-vec3 VertexInterp(vec4 c1, vec4 c2)
-{
-    float t = (densityThreshold - c1.w) / (c2.w - c1.w);
-    vec3 v;
-    v.x = c1.x + t * (c2.x - c1.x);
-    v.y = c1.y + t * (c2.y - c1.y);
-    v.z = c1.z + t * (c2.z - c1.z);
-    return v;
-}
-
-vec3 CalculateNormal(vec3 v1, vec3 v2, vec3 v3)
-{
-    vec3 vect1 = v2 - v1;
-    vec3 vect2 = v3 - v1;
-    vec3 unnormalized = cross(vect1, vect2);
-    return normalize(unnormalized);
-}
-
 ivec3 GetGridDimensions()
 {
     return ivec3(
-        int(gl_NumWorkGroups.x) * int(gl_WorkGroupSize.x) + 1,
-        int(gl_NumWorkGroups.y) * int(gl_WorkGroupSize.y) + 1,
-        int(gl_NumWorkGroups.z) * int(gl_WorkGroupSize.z) + 1
+        int(gl_NumWorkGroups.x) * int(gl_WorkGroupSize.x),
+        int(gl_NumWorkGroups.y) * int(gl_WorkGroupSize.y),
+        int(gl_NumWorkGroups.z) * int(gl_WorkGroupSize.z)
     );
 }
 
 int GetDensityIndex(int x, int y, int z)
 {
-    int gridsizeX = int(gl_NumWorkGroups.x) * int(gl_WorkGroupSize.x) + 1;
-    int gridsizeY = int(gl_NumWorkGroups.y) * int(gl_WorkGroupSize.y) + 1;
-    int gridsizeZ = int(gl_NumWorkGroups.z) * int(gl_WorkGroupSize.z) + 1;
+    int gridsizeX = int(gl_NumWorkGroups.x) * int(gl_WorkGroupSize.x);
+    int gridsizeY = int(gl_NumWorkGroups.y) * int(gl_WorkGroupSize.y);
+    int gridsizeZ = int(gl_NumWorkGroups.z) * int(gl_WorkGroupSize.z);
     int densityIndex = x + y * gridsizeX + z * gridsizeX * gridsizeY;
     int densitySlotCount = gridsizeX * gridsizeY * gridsizeZ;
     return densityIndex;
@@ -211,8 +193,7 @@ float GetCaveDensity(float x, float y, float z)
     float sz = (z + chunkZ) * 0.05;
     return Perlin3D(sx, sy, sz) 
     + Perlin3D(sx * 2, sy * 2, sz * 2) * 0.5 
-    + Perlin3D(sx * 4, sy * 4, sz * 4) * 0.25
-    + Perlin3D(sx * 8, sy * 8, sz * 8) * 0.15;
+    + Perlin3D(sx * 4, sy * 4, sz * 4) * 0.25;
 }
 
 float GetDensity(float x, float y, float z)
@@ -243,27 +224,52 @@ float GetDensity(float x, float y, float z)
     return result;
 }
 
-void AddFace(vec3 v1, vec3 v2, vec3 v3, vec3 normal, int index)
+vec3 VertexInterp(vec4 c1, vec4 c2)
+{
+    float t = (densityThreshold - c1.w) / (c2.w - c1.w);
+    vec3 v;
+    v.x = c1.x + t * (c2.x - c1.x);
+    v.y = c1.y + t * (c2.y - c1.y);
+    v.z = c1.z + t * (c2.z - c1.z);
+    return v;
+}
+
+vec3 CalculateNormal(vec3 p)
+{
+    float e = 0.5; // MUST match your voxel spacing
+
+    float dx = GetDensity(p.x + e, p.y, p.z) - GetDensity(p.x - e, p.y, p.z);
+    float dy = GetDensity(p.x, p.y + e, p.z) - GetDensity(p.x, p.y - e, p.z);
+    float dz = GetDensity(p.x, p.y, p.z + e) - GetDensity(p.x, p.y, p.z - e);
+
+    return normalize(vec3(dx, dy, dz));
+}
+
+void AddFace(vec3 v1, vec3 v2, vec3 v3, vec3 n1, vec3 n2, vec3 n3, int index)
 {
     // vertex 1
     vertices[index] = v1.x;
     vertices[index + 1] = v1.y;
     vertices[index + 2] = v1.z;
+    vertices[index + 3] = n1.x;
+    vertices[index + 4] = n1.y;
+    vertices[index + 5] = n1.z;
 
     // vertex 2
-    vertices[index + 3] = v2.x;
-    vertices[index + 4] = v2.y;
-    vertices[index + 5] = v2.z;
+    vertices[index + 6] = v2.x;
+    vertices[index + 7] = v2.y;
+    vertices[index + 8] = v2.z;
+    vertices[index + 9] = n2.x;
+    vertices[index + 10] = n2.y;
+    vertices[index + 11] = n2.z;
 
     // vertex 3
-    vertices[index + 6] = v3.x;
-    vertices[index + 7] = v3.y;
-    vertices[index + 8] = v3.z;
-
-    // normal
-    vertices[index + 9] = normal.x;
-    vertices[index + 10] = normal.y;
-    vertices[index + 11] = normal.z;
+    vertices[index + 12] = v3.x;
+    vertices[index + 13] = v3.y;
+    vertices[index + 14] = v3.z;
+    vertices[index + 15] = n3.x;
+    vertices[index + 16] = n3.y;
+    vertices[index + 17] = n3.z;
 }
 
 void main()
@@ -301,7 +307,7 @@ void main()
     }
 
     int i = 0;
-    int vertexIndex = threadID * 48;
+    int vertexIndex = threadID * 72;
     while(TriTableGet(cubeIndex, i) != -1)
     {
         int a0 = cornerIndexAFromEdge[TriTableGet(cubeIndex, i)];
@@ -313,8 +319,10 @@ void main()
         vec3 v1 = VertexInterp(corners[a0], corners[b0]);
         vec3 v2 = VertexInterp(corners[a1], corners[b1]);
         vec3 v3 = VertexInterp(corners[a2], corners[b2]);
-        vec3 normal = CalculateNormal(v1, v2, v3);
-        AddFace(v1, v2, v3, normal, vertexIndex + i * 4);
+        vec3 n1 = CalculateNormal(v1);
+        vec3 n2 = CalculateNormal(v2);
+        vec3 n3 = CalculateNormal(v3);
+        AddFace(v1, v2, v3, n1, n2, n3, vertexIndex + i * 6);
         i += 3;
 
         // mark partition as "containing mesh vertices"
@@ -324,8 +332,8 @@ void main()
     }
 
     // set remaining vertices with empty values
-    int cubeVerticesRemainingStart = threadID * 48;
-    for (int j=i*4; j<48; ++j) {
+    int cubeVerticesRemainingStart = threadID * 72;
+    for (int j=i*6; j<72; ++j) {
         vertices[cubeVerticesRemainingStart + j] = 0.0f;
     }
 }

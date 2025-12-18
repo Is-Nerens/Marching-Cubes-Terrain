@@ -100,6 +100,24 @@ void MeshGrowIndexCapacity(Mesh* mesh)
     mesh->indexBuffer = realloc(mesh->indexBuffer, mesh->indexCapacity * sizeof(uint32_t));
 }
 
+inline void MeshAddIndex(Mesh* mesh, uint32_t index)
+{
+    mesh->indexBuffer[mesh->indexCount] = index;
+    mesh->indexCount++;
+}
+
+inline void MeshAddVertex(Mesh* mesh, float x, float y, float z, float nx, float ny, float nz)
+{
+    uint32_t vert_i = mesh->vertexCount * 6; 
+    mesh->vertexBuffer[vert_i] = x;
+    mesh->vertexBuffer[vert_i+1] = y;
+    mesh->vertexBuffer[vert_i+2] = z;
+    mesh->vertexBuffer[vert_i+3] = nx;
+    mesh->vertexBuffer[vert_i+4] = ny;
+    mesh->vertexBuffer[vert_i+5] = nz;
+    mesh->vertexCount++;
+}
+
 inline void MeshAddFace(Mesh* mesh, vec3 v1, vec3 v2, vec3 v3, vec3 normal)
 {
     if (mesh->vertexCount + 3 > mesh->vertexCapacity) {

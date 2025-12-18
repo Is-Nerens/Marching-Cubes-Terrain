@@ -41,7 +41,7 @@ int main()
 
 
     GeneratorGPU generator;
-    GeneratorGPUInit(&generator, 32);
+    GeneratorGPUInit(&generator, 24);
 
     TerrainRenderer renderer;
     TerrainRendererInit(&renderer);
@@ -93,10 +93,15 @@ int main()
         }
         CameraMove(&camera, deltaTime);
         CameraUpdate(&camera);
+        
 
+        uint64_t start = SDL_GetPerformanceCounter();
         SearchForEmptyChunks(&terrain, camera.position[0], camera.position[1], camera.position[2]);
         DeleteDistantChunks(&terrain, camera.position[0], camera.position[1], camera.position[2]);
         GenerateChunks(&terrain, &generator);
+        uint64_t end = SDL_GetPerformanceCounter();
+        float time = (float)(end - start) / (float)freq;
+        // printf("chunk generation time: %fms\n", time*1000);
         
 
         // Draw scene
