@@ -11,6 +11,7 @@
 #include "camera.h"
 #include "texture.h"
 #include "terrain/terrain.h"
+#include "terrain/terrain_raycast.h"
 #include "terrain_renderer.h"
 
 
@@ -93,6 +94,40 @@ int main()
         }
         CameraMove(&camera, deltaTime);
         CameraUpdate(&camera);
+
+        Uint32 buttons = SDL_GetMouseState(NULL, NULL);
+        if (buttons & SDL_BUTTON_MASK(SDL_BUTTON_LEFT)) { // Check left button
+            Ray ray;
+            glm_vec3_copy(camera.position, ray.origin);
+            glm_vec3_copy(camera.forward, ray.dir);
+            RayHit hit = TerrainRaycast(&terrain, ray);
+            if (hit.hit) 
+            {
+                TerrainAddDensity(
+                    &terrain, 
+                    hit.position[0],
+                    hit.position[1],
+                    hit.position[2],
+                    3, -1.5f * deltaTime
+                );
+            }
+        }
+        if (buttons & SDL_BUTTON_MASK(SDL_BUTTON_RIGHT)) { // Check right button
+            Ray ray;
+            glm_vec3_copy(camera.position, ray.origin);
+            glm_vec3_copy(camera.forward, ray.dir);
+            RayHit hit = TerrainRaycast(&terrain, ray);
+            if (hit.hit) 
+            {
+                TerrainAddDensity(
+                    &terrain, 
+                    hit.position[0],
+                    hit.position[1],
+                    hit.position[2],
+                    3, 1.5f * deltaTime
+                );
+            }
+        }
         
 
         uint64_t start = SDL_GetPerformanceCounter();

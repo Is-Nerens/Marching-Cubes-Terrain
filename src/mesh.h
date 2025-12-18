@@ -1,5 +1,10 @@
 #pragma once
 
+typedef struct AABB {
+    float minX, minY, minZ;
+    float maxX, maxY, maxZ;
+} AABB;
+
 typedef struct Mesh {
     float* vertexBuffer;
     uint32_t* indexBuffer;
@@ -11,6 +16,7 @@ typedef struct Mesh {
     GLuint VBO;
     GLuint IBO;
     float x, y, z;
+    AABB aabb;
     bool uploaded;
 } Mesh;
 
@@ -25,6 +31,12 @@ void MeshInit(Mesh* mesh, uint32_t vertexCapacity, uint32_t indexCapacity)
     mesh->x = 0.0f;
     mesh->y = 0.0f;
     mesh->z = 0.0f;
+    mesh->aabb.minX = 0.0f;
+    mesh->aabb.minY = 0.0f;
+    mesh->aabb.minZ = 0.0f;
+    mesh->aabb.maxX = 0.0f;
+    mesh->aabb.maxY = 0.0f;
+    mesh->aabb.maxZ = 0.0f;
     mesh->uploaded = false;
 }
 
@@ -163,47 +175,3 @@ inline void MeshAddFace(Mesh* mesh, vec3 v1, vec3 v2, vec3 v3, vec3 normal)
     mesh->indexCount += 3;
 }
 
-inline void MeshChunkGenerateAddFace(Mesh* mesh, float* verts)
-{
-    if (mesh->vertexCount + 3 > mesh->vertexCapacity) {
-        MeshGrowVertexCapacity(mesh);
-    }
-
-    if (mesh->indexCount + 3 > mesh->indexCapacity) {
-        MeshGrowIndexCapacity(mesh);
-    }
-
-    // v1
-    uint32_t vert_i = mesh->vertexCount * 6; 
-    mesh->vertexBuffer[vert_i   ]   = verts[0];
-    mesh->vertexBuffer[vert_i + 1 ] = verts[1];
-    mesh->vertexBuffer[vert_i + 2 ] = verts[2];
-    mesh->vertexBuffer[vert_i + 3 ] = verts[9];
-    mesh->vertexBuffer[vert_i + 4 ] = verts[10];
-    mesh->vertexBuffer[vert_i + 5 ] = verts[11];
-
-    // v2
-    mesh->vertexBuffer[vert_i + 6 ] = verts[3];
-    mesh->vertexBuffer[vert_i + 7 ] = verts[4];
-    mesh->vertexBuffer[vert_i + 8 ] = verts[5];
-    mesh->vertexBuffer[vert_i + 9 ] = verts[9];
-    mesh->vertexBuffer[vert_i + 10] = verts[10];
-    mesh->vertexBuffer[vert_i + 11] = verts[11];
-
-    // v3
-    mesh->vertexBuffer[vert_i + 12 ] = verts[6];
-    mesh->vertexBuffer[vert_i + 13 ] = verts[7];
-    mesh->vertexBuffer[vert_i + 14 ] = verts[8];
-    mesh->vertexBuffer[vert_i + 15 ] = verts[9];
-    mesh->vertexBuffer[vert_i + 16 ] = verts[10];
-    mesh->vertexBuffer[vert_i + 17 ] = verts[11];
-
-    // indices
-    mesh->indexBuffer[mesh->indexCount  ] = mesh->vertexCount;
-    mesh->indexBuffer[mesh->indexCount+1] = mesh->vertexCount+1;
-    mesh->indexBuffer[mesh->indexCount+2] = mesh->vertexCount+2;
-
-    // update counts
-    mesh->vertexCount += 3;
-    mesh->indexCount += 3;
-}

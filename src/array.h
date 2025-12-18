@@ -3,17 +3,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct Array
+typedef struct Array
 {
     void* data;  
     uint32_t element_size;
     uint32_t size; 
     uint32_t capacity;         
-};
+} Array;
 
 void Array_Init(struct Array* arr, uint32_t element_size, uint32_t capacity) 
 {
     arr->data = malloc(capacity * element_size);
+    arr->element_size = element_size;
+    arr->size = 0;
+    arr->capacity = capacity;
+}
+
+void Array_InitCalloc(struct Array* arr, uint32_t element_size, uint32_t capacity) 
+{
+    arr->data = calloc(capacity, element_size);
     arr->element_size = element_size;
     arr->size = 0;
     arr->capacity = capacity;
@@ -72,7 +80,7 @@ void Array_Insert(struct Array* array, uint32_t index, void* value)
 
 void Array_Clear(struct Array* array) 
 {
-    array->size = array->capacity = 0;
+    array->size = 0;
 }
 
 

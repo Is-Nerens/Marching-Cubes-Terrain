@@ -59,12 +59,9 @@ void main() {
     vec4 grassColorZ = texture(u_grass_albedo_texture, uvZ * grassTextureScale);
 
     // FINAL TEXTURE COLOUR
-    // vec4 texColorX = mix(rockColorX, grassColorX, steepnessBlendFactor);
-    // vec4 texColorY = mix(rockColorY, grassColorY, steepnessBlendFactor);
-    // vec4 texColorZ = mix(rockColorZ, grassColorZ, steepnessBlendFactor);
-    vec4 texColorX = grassColorX;
-    vec4 texColorY = grassColorY;
-    vec4 texColorZ = grassColorZ;
+    vec4 texColorX = mix(rockColorX, grassColorX, steepnessBlendFactor);
+    vec4 texColorY = mix(rockColorY, grassColorY, steepnessBlendFactor);
+    vec4 texColorZ = mix(rockColorZ, grassColorZ, steepnessBlendFactor);
     vec3 textureColor = texColorX.rgb * blendWeights.x + texColorY.rgb * blendWeights.y + texColorZ.rgb * blendWeights.z;
 
 

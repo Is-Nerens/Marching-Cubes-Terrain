@@ -5,6 +5,7 @@
 #include <math.h>
 #include "../mesh.h"
 #include "../shader.h"
+#include "../array.h"
 #include "tables.h"
 #include "vertex_map.h"
 
@@ -18,6 +19,7 @@ typedef struct GeneratorGPU {
     int partitionSubdivisionsLocation;
     GLuint triTableBuffer;
     GLuint vertexBuffer;
+    GLuint editDensityBuffer;
     GLuint partitionOccupancyBuffer;
     int chunkSize;
 } GeneratorGPU;
@@ -47,6 +49,13 @@ void GeneratorGPUInit(GeneratorGPU* generator, int chunkSize)
     glBufferData(GL_SHADER_STORAGE_BUFFER, vertexBufferBytes, NULL, GL_DYNAMIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, generator->vertexBuffer);
 
+    // edit density buffer
+    glGenBuffers(1, &generator->editDensityBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->editDensityBuffer);
+    int editDensityFloatCount = (generator->chunkSize + 1) * (generator->chunkSize + 1) * (generator->chunkSize + 1);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, editDensityFloatCount * sizeof(float), NULL, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, generator->editDensityBuffer);
+
     // partition occupancy buffer
     glGenBuffers(1, &generator->partitionOccupancyBuffer);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->partitionOccupancyBuffer);
@@ -58,6 +67,7 @@ void GeneratorGPUFree(GeneratorGPU* generator)
 {
     glDeleteBuffers(1, &generator->vertexBuffer);
     glDeleteBuffers(1, &generator->triTableBuffer);
+    glDeleteBuffers(1, &generator->editDensityBuffer);
     glDeleteBuffers(1, &generator->partitionOccupancyBuffer);
     generator->densityThresholdLocation = 0;
     generator->chunkXLocation = 0;
@@ -70,10 +80,10 @@ struct Slice {
     int numFloats;
 };
 
-void GeneratorGPUGenerateChunk(GeneratorGPU* generator, Mesh* mesh, float x, float y, float z)
+void GeneratorGPUGenerateChunk(GeneratorGPU* generator, Array* editDensities, Mesh* mesh, float x, float y, float z)
 {
+    // Set uniforms
     int cubes = generator->chunkSize * generator->chunkSize * generator->chunkSize;
-    MeshClearCPU(mesh);
     glUseProgram(generator->computeShaderProgram);
     glUniform1f(generator->densityThresholdLocation, 0.7f);
     glUniform1f(generator->chunkXLocation, x);
@@ -81,9 +91,17 @@ void GeneratorGPUGenerateChunk(GeneratorGPU* generator, Mesh* mesh, float x, flo
     glUniform1f(generator->chunkZLocation, z);
     glUniform1i(generator->cubesLocation, cubes);
     glUniform1i(generator->partitionSubdivisionsLocation, 3);
+
+    // Clear partition bits
     uint8_t zeros[64] = {0};
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->partitionOccupancyBuffer);
-    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(zeros), zeros); // clear partition bits
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(zeros), zeros);
+
+    // Upload edit density volume
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->editDensityBuffer);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, editDensities->capacity * sizeof(float), editDensities->data);
+
+    // Run compute shader
     int workGroupSizeX = 8;
     int workGroupSizeY = 8;
     int workGroupSizeZ = 8;
@@ -94,6 +112,9 @@ void GeneratorGPUGenerateChunk(GeneratorGPU* generator, Mesh* mesh, float x, flo
     glMemoryBarrier(GL_ALL_BARRIER_BITS);
     glFinish();
 
+    // Clear mesh
+    MeshClearCPU(mesh);
+
     // get pointer to partition occupancy buffer
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->partitionOccupancyBuffer); 
     GLint* partitionOccupancyFlags = (GLint*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
@@ -102,10 +123,11 @@ void GeneratorGPUGenerateChunk(GeneratorGPU* generator, Mesh* mesh, float x, flo
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->vertexBuffer); 
     GLfloat* rawVertexData = (GLfloat*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
 
+    // Create vertex map
     VertexMap vmap;
     VertexMapInit(&vmap, generator->chunkSize);
 
-    // generate mesh
+    // Generate mesh
     int partitions = (int)pow(8.0, (double)3);
     int cubesPerPartition = cubes / partitions;
     int floatsPerCube = cubesPerPartition * 72;
@@ -122,7 +144,7 @@ void GeneratorGPUGenerateChunk(GeneratorGPU* generator, Mesh* mesh, float x, flo
                 for (int fa=0; fa<4; fa++) {
 
                     float* faceData = &slicePtr[fl + fa * 18];
-                    if (faceData[0] == 0.0f) break;
+                    if (faceData[0] == -1.0f) break;
 
                     if (mesh->vertexCount + 3 > mesh->vertexCapacity) {
                         MeshGrowVertexCapacity(mesh);
@@ -166,14 +188,21 @@ void GeneratorGPUGenerateChunk(GeneratorGPU* generator, Mesh* mesh, float x, flo
         }
     }
 
+    // Free and unbind
     VertexMapFree(&vmap);
-
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->vertexBuffer);
     glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->partitionOccupancyBuffer);
     glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 
+    // Set mesh position
     mesh->x = x;
     mesh->y = y;
     mesh->z = z;
+    mesh->aabb.minX = x;
+    mesh->aabb.maxX = x + generator->chunkSize;
+    mesh->aabb.minY = y;
+    mesh->aabb.maxY = y + generator->chunkSize;
+    mesh->aabb.minZ = z;
+    mesh->aabb.maxZ = z + generator->chunkSize;
 }

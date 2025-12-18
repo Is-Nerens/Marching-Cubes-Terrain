@@ -40,11 +40,11 @@ ivec3 GetGridDimensions()
 
 int GetDensityIndex(int x, int y, int z)
 {
-    int gridsizeX = int(gl_NumWorkGroups.x) * int(gl_WorkGroupSize.x);
-    int gridsizeY = int(gl_NumWorkGroups.y) * int(gl_WorkGroupSize.y);
-    int gridsizeZ = int(gl_NumWorkGroups.z) * int(gl_WorkGroupSize.z);
-    int densityIndex = x + y * gridsizeX + z * gridsizeX * gridsizeY;
-    int densitySlotCount = gridsizeX * gridsizeY * gridsizeZ;
+    int gridsizeX = int(gl_NumWorkGroups.x) * int(gl_WorkGroupSize.x) + 1;
+    int gridsizeY = int(gl_NumWorkGroups.y) * int(gl_WorkGroupSize.y) + 1;
+    int densityIndex = x + 
+                       y * gridsizeX + 
+                       z * gridsizeX * gridsizeY;
     return densityIndex;
 }
 
@@ -198,30 +198,32 @@ float GetCaveDensity(float x, float y, float z)
 
 float GetDensity(float x, float y, float z)
 {
-    float pointHeight = y + chunkY;
+    float density = 0;
 
-    // Calculate the density based on the height difference for the surface
+
+    // Get surface density
+    float pointHeight = y + chunkY;
     float surfaceHeight = GetSurfaceHeight(x, z) * 1.5;
     float surfaceDensity = surfaceHeight - pointHeight;
     surfaceDensity = clamp(surfaceDensity, 0.0, 1.0);
 
-    float caveDensity = GetCaveDensity(x, y, z) * 0.85; 
+    // Get cave density
+    float caveDensity = GetCaveDensity(x, y, z); 
 
-    // BLEND BETWEEN CAVE DENSITY AND SURFACE 
+    // Blend between cave density and surface
     float blendDistance = 6;
-    float density = 0;
-    if (pointHeight < surfaceHeight + blendDistance)
-    {
+    if (pointHeight < surfaceHeight + blendDistance) {
         float blendTerm = clamp((surfaceHeight + blendDistance - pointHeight) / blendDistance, 0, 1);
         density = mix(surfaceDensity, caveDensity, blendTerm);
     }
-    else
-    {
-        density = surfaceDensity;
-    }
+    else { density = surfaceDensity; }
 
-    float result = density;
-    return result;
+    // Get edit density
+    int densityIndex = GetDensityIndex(int(x), int(y), int(z));
+    float editDensity = editDensities[densityIndex];
+
+    // Return 
+    return density + editDensity;
 }
 
 vec3 VertexInterp(vec4 c1, vec4 c2)
@@ -289,14 +291,14 @@ void main()
     int partitionIndex = threadID / cubesPerPartition;
 
     vec4 corners[8];
-    corners[0] = vec4(globalPos.x + 1, globalPos.y + 1, globalPos.z + 2, 0);
-    corners[1] = vec4(globalPos.x + 2, globalPos.y + 1, globalPos.z + 2, 0);
-    corners[2] = vec4(globalPos.x + 2, globalPos.y + 1, globalPos.z + 1, 0);
-    corners[3] = vec4(globalPos.x + 1, globalPos.y + 1, globalPos.z + 1, 0);
-    corners[4] = vec4(globalPos.x + 1, globalPos.y + 2, globalPos.z + 2, 0);
-    corners[5] = vec4(globalPos.x + 2, globalPos.y + 2, globalPos.z + 2, 0);
-    corners[6] = vec4(globalPos.x + 2, globalPos.y + 2, globalPos.z + 1, 0);
-    corners[7] = vec4(globalPos.x + 1, globalPos.y + 2, globalPos.z + 1, 0);
+    corners[0] = vec4(globalPos.x    , globalPos.y    , globalPos.z + 1, 0);
+    corners[1] = vec4(globalPos.x + 1, globalPos.y    , globalPos.z + 1, 0);
+    corners[2] = vec4(globalPos.x + 1, globalPos.y    , globalPos.z    , 0);
+    corners[3] = vec4(globalPos.x    , globalPos.y    , globalPos.z    , 0);
+    corners[4] = vec4(globalPos.x    , globalPos.y + 1, globalPos.z + 1, 0);
+    corners[5] = vec4(globalPos.x + 1, globalPos.y + 1, globalPos.z + 1, 0);
+    corners[6] = vec4(globalPos.x + 1, globalPos.y + 1, globalPos.z    , 0);
+    corners[7] = vec4(globalPos.x    , globalPos.y + 1, globalPos.z    , 0);
 
     int cubeIndex = 0;
     for (int i=0; i<8; i++)
@@ -334,6 +336,6 @@ void main()
     // set remaining vertices with empty values
     int cubeVerticesRemainingStart = threadID * 72;
     for (int j=i*6; j<72; ++j) {
-        vertices[cubeVerticesRemainingStart + j] = 0.0f;
+        vertices[cubeVerticesRemainingStart + j] = -1.0f;
     }
 }
