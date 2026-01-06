@@ -42,17 +42,17 @@ int main()
 
 
     GeneratorGPU generator;
-    GeneratorGPUInit(&generator, 24);
+    GeneratorGPUInit(&generator, 32);
 
     TerrainRenderer renderer;
     TerrainRendererInit(&renderer);
 
     Terrain terrain;
-    TerrainInit(&terrain, 24);
-
+    TerrainInit(&terrain, 32);
 
     Camera camera;
     CameraInit(&camera);
+
 
     // ------------------------
     // --- Application loop ---
@@ -101,7 +101,7 @@ int main()
             glm_vec3_copy(camera.position, ray.origin);
             glm_vec3_copy(camera.forward, ray.dir);
             RayHit hit = TerrainRaycast(&terrain, ray);
-            if (hit.hit) 
+            if (hit.hit && hit.distance < 25.0f) 
             {
                 TerrainAddDensity(
                     &terrain, 
@@ -117,7 +117,7 @@ int main()
             glm_vec3_copy(camera.position, ray.origin);
             glm_vec3_copy(camera.forward, ray.dir);
             RayHit hit = TerrainRaycast(&terrain, ray);
-            if (hit.hit) 
+            if (hit.hit && hit.distance < 25.0f) 
             {
                 TerrainAddDensity(
                     &terrain, 
@@ -136,7 +136,6 @@ int main()
         GenerateChunks(&terrain, &generator);
         uint64_t end = SDL_GetPerformanceCounter();
         float time = (float)(end - start) / (float)freq;
-        // printf("chunk generation time: %fms\n", time*1000);
         
 
         // Draw scene

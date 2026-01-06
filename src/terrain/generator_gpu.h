@@ -18,6 +18,7 @@ typedef struct GeneratorGPU {
     int cubesLocation;
     int partitionSubdivisionsLocation;
     GLuint triTableBuffer;
+    GLuint edgeTable;
     GLuint vertexBuffer;
     GLuint editDensityBuffer;
     GLuint partitionOccupancyBuffer;
@@ -40,33 +41,40 @@ void GeneratorGPUInit(GeneratorGPU* generator, int chunkSize)
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->triTableBuffer);
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * 4096, TriTable, GL_STATIC_READ); 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0,generator->triTableBuffer);
+
+    // edge buffer
+    glGenBuffers(1, &generator->edgeTable);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->edgeTable);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * 256, edges, GL_STATIC_READ); 
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, generator->edgeTable);
     
     // vertex buffer
     glGenBuffers(1, &generator->vertexBuffer);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->vertexBuffer);
     // number of cubes * faces per cube(4) * vertices per face (3) * floats per vertex(x,y,z,nx,ny,nz) * sizeof(float)
-    int vertexBufferBytes = chunkSize * chunkSize * chunkSize * 4 * 3 * 6 * sizeof(float);
+    int vertexBufferBytes = chunkSize * chunkSize * chunkSize * 5 * 3 * 6 * sizeof(float);
     glBufferData(GL_SHADER_STORAGE_BUFFER, vertexBufferBytes, NULL, GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, generator->vertexBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, generator->vertexBuffer);
 
     // edit density buffer
     glGenBuffers(1, &generator->editDensityBuffer);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->editDensityBuffer);
     int editDensityFloatCount = (generator->chunkSize + 1) * (generator->chunkSize + 1) * (generator->chunkSize + 1);
     glBufferData(GL_SHADER_STORAGE_BUFFER, editDensityFloatCount * sizeof(float), NULL, GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, generator->editDensityBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, generator->editDensityBuffer);
 
     // partition occupancy buffer
     glGenBuffers(1, &generator->partitionOccupancyBuffer);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, generator->partitionOccupancyBuffer);
     glBufferData(GL_SHADER_STORAGE_BUFFER, 64, NULL, GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, generator->partitionOccupancyBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, generator->partitionOccupancyBuffer);
 }
 
 void GeneratorGPUFree(GeneratorGPU* generator)
 {
     glDeleteBuffers(1, &generator->vertexBuffer);
     glDeleteBuffers(1, &generator->triTableBuffer);
+    glDeleteBuffers(1, &generator->edgeTable);
     glDeleteBuffers(1, &generator->editDensityBuffer);
     glDeleteBuffers(1, &generator->partitionOccupancyBuffer);
     generator->densityThresholdLocation = 0;
@@ -85,7 +93,7 @@ void GeneratorGPUGenerateChunk(GeneratorGPU* generator, Array* editDensities, Me
     // Set uniforms
     int cubes = generator->chunkSize * generator->chunkSize * generator->chunkSize;
     glUseProgram(generator->computeShaderProgram);
-    glUniform1f(generator->densityThresholdLocation, 0.7f);
+    glUniform1f(generator->densityThresholdLocation, 0.0f);
     glUniform1f(generator->chunkXLocation, x);
     glUniform1f(generator->chunkYLocation, y);
     glUniform1f(generator->chunkZLocation, z);
@@ -130,18 +138,18 @@ void GeneratorGPUGenerateChunk(GeneratorGPU* generator, Array* editDensities, Me
     // Generate mesh
     int partitions = (int)pow(8.0, (double)3);
     int cubesPerPartition = cubes / partitions;
-    int floatsPerCube = cubesPerPartition * 72;
+    int floatsPerCube = cubesPerPartition * 90;
     for (int i=0; i<partitions; i++) 
     {
         if ((partitionOccupancyFlags[i >> 5] >> (31 - (i & 31))) & 1) // if partition contains mesh data
         {
             GLfloat* slicePtr = &rawVertexData[i * floatsPerCube];
 
-            // loop over 72 floats at a time (72 floats are allocated to each cube)
-            for (int fl=0; fl<floatsPerCube; fl+=72) {   
+            // loop over 90 floats at a time (90 floats are allocated to each cube)
+            for (int fl=0; fl<floatsPerCube; fl+=90) {   
 
                 // for each face f
-                for (int fa=0; fa<4; fa++) {
+                for (int fa=0; fa<5; fa++) {
 
                     float* faceData = &slicePtr[fl + fa * 18];
                     if (faceData[0] == -1.0f) break;

@@ -74,15 +74,13 @@ void TerrainAddDensity(Terrain* terrain, float x, float y, float z, int radius, 
                 // If dist from snap pos to corner <= radius
                 vec3 pos = { x, y, z };
                 float dist = glm_vec3_distance(snapVec, pos);
-                if (dist < radius)
-                {
-                    int densityIndex = cornerLocalX + (cornerLocalY * (terrain->chunkSize + 1)) + (cornerLocalZ * (terrain->chunkSize + 1) * (terrain->chunkSize + 1));
-                    float* val = Array_Get(editDensities, densityIndex);
-                    *val += amount;
-                    if (*val > 1.0f) *val = 1.0f;
-                    if (*val < -1.0f) *val = -1.0f;
-                    regenerateMesh = true;
-                }
+                int densityIndex = cornerLocalX + (cornerLocalY * (terrain->chunkSize + 1)) + (cornerLocalZ * (terrain->chunkSize + 1) * (terrain->chunkSize + 1));
+                float* val = Array_Get(editDensities, densityIndex);
+                float falloff = 1.0f - (dist / radius);
+                *val += amount * falloff;
+                if (*val > 2.0f) *val = 2.0f;
+                if (*val < -2.0f) *val = -2.0f;
+                regenerateMesh = true;
             }
         }  
         }  
@@ -175,7 +173,11 @@ void GenerateChunks(Terrain* terrain, GeneratorGPU* generator)
         if (mesh != NULL && found != NULL)
         {
             Array* editDensities = (Array*)found;
+            uint64_t start = SDL_GetPerformanceCounter();
+            uint64_t freq = SDL_GetPerformanceFrequency();
             GeneratorGPUGenerateChunk(generator, editDensities, mesh, pos->x * terrain->chunkSize, pos->y * terrain->chunkSize, pos->z * terrain->chunkSize);
+            uint64_t end = SDL_GetPerformanceCounter();
+            float deltaTime = (float)(end - start) / (float)freq;
         }
     }
 

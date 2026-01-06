@@ -12,19 +12,15 @@ uniform int partitionSubdivisions;
 layout(binding = 0) readonly buffer TriTableBuffer {
     int TriTable[];
 };
-layout(binding = 1) readonly buffer EdgeTable {
-    int edgeTable[];
-};
-layout(binding = 2) writeonly buffer VertexBuffer {
+layout(binding = 1) writeonly buffer VertexBuffer {
     float vertices[];
 };
-layout(binding = 3) readonly buffer EditDensities {
+layout(binding = 2) readonly buffer EditDensities {
     float editDensities[];
 };
-layout(binding = 4) coherent buffer PartitionOccupancy {
+layout(binding = 3) coherent buffer PartitionOccupancy {
     int partitionOccupancyFlags[];
 };
-
 
 
 // cornerIndexAFromEdge array
@@ -320,7 +316,7 @@ void main()
     }
 
     int i = 0;
-    int vertexIndex = threadID * 90;
+    int vertexIndex = threadID * 72;
     while(TriTableGet(cubeIndex, i) != -1)
     {
         int a0 = cornerIndexAFromEdge[TriTableGet(cubeIndex, i)];
@@ -348,8 +344,8 @@ void main()
     }
 
     // set remaining vertices with empty values
-    int cubeVerticesRemainingStart = threadID * 90;
-    for (int j=i*6; j<90; ++j) {
+    int cubeVerticesRemainingStart = threadID * 72;
+    for (int j=i*6; j<72; ++j) {
         vertices[cubeVerticesRemainingStart + j] = -1.0f;
     }
 }
