@@ -31,7 +31,7 @@ void MeshArray_Init(MeshArray* array, uint32_t capacity, uint32_t keySize)
     array->reserveSize = 0;
     array->keySize = keySize;
 
-    Hashmap_Init(&array->index, keySize, sizeof(uint32_t), array->capacity);
+    HashmapInit(&array->index, keySize, sizeof(uint32_t), array->capacity);
 }
 
 void MeshArray_Free(MeshArray* array)
@@ -51,7 +51,7 @@ void MeshArray_Free(MeshArray* array)
     free(array->meshes);
     free(array->reserve);
     free(array->keys);
-    Hashmap_Free(&array->index);
+    HashmapFree(&array->index);
     array->meshes = NULL;
     array->reserve = NULL;
     array->size = 0;
@@ -69,7 +69,7 @@ void MeshArray_Push(MeshArray* array, Mesh* mesh, void* key)
         array->keys = realloc(array->keys, array->capacity * array->keySize);
     }
 
-    Hashmap_Set(&array->index, key, &array->size);
+    HashmapSet(&array->index, key, &array->size);
 
     // copy mesh + increase size
     array->meshes[array->size] = *mesh;
@@ -86,7 +86,7 @@ Mesh* MeshArray_Create(MeshArray* array, void* key)
         array->keys = realloc(array->keys, array->capacity * array->keySize);
     }
 
-    Hashmap_Set(&array->index, key, &array->size);
+    HashmapSet(&array->index, key, &array->size);
 
     // reuse reserved mesh
     if (array->reserveSize > 0) {
@@ -126,7 +126,7 @@ void MeshArray_Delete(MeshArray* array, uint32_t index)
     char* deletedKey = (char*)array->keys + index * array->keySize;
 
     // remove deleted from index
-    Hashmap_Delete(&array->index, deletedKey);
+    HashmapDelete(&array->index, deletedKey);
 
     if (index == array->size-1) 
     {
@@ -141,7 +141,7 @@ void MeshArray_Delete(MeshArray* array, uint32_t index)
         memcpy(deletedKey, movedKey, array->keySize);
         
         // update index of moved
-        Hashmap_Set(&array->index, movedKey, &index);
+        HashmapSet(&array->index, movedKey, &index);
         array->size--;
     }
 }
@@ -153,7 +153,7 @@ Mesh* MeshArray_Get(MeshArray* array, uint32_t index)
 
 Mesh* MeshArray_KeyGet(MeshArray* array, void* key)
 {
-    void* found = Hashmap_Get(&array->index, key);
+    void* found = HashmapGet(&array->index, key);
     if (!found) return NULL;
     uint32_t index = *(uint32_t*)found;
     return &array->meshes[index];
@@ -166,7 +166,7 @@ void* MeshArray_GetKey(MeshArray* array, uint32_t index)
 
 bool MeshArray_Contains(MeshArray* array, void* key)
 {
-    return Hashmap_Contains(&array->index, key);
+    return HashmapContains(&array->index, key);
 }
 
 void MeshArray_Clear(MeshArray* array)
@@ -181,5 +181,5 @@ void MeshArray_Clear(MeshArray* array)
         array->reserveSize++;
     }
     array->size = 0;
-    Hashmap_Clear(&array->index);
+    HashmapClear(&array->index);
 }

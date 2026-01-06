@@ -25,14 +25,14 @@ void TerrainInit(Terrain* terrain, int chunkSize)
     terrain->chunkSize = chunkSize;
     uint32_t chunkCapacity = (terrain->renderDistH * 2 - 1) * (terrain->renderDistH * 2 - 1) * (terrain->renderDistV * 2 - 1);
     MeshArray_Init(&terrain->chunks, chunkCapacity, sizeof(Pos));
-    Hashmap_Init(&terrain->editDensities, sizeof(Pos), sizeof(struct Array), chunkCapacity);
+    HashmapInit(&terrain->editDensities, sizeof(Pos), sizeof(struct Array), chunkCapacity);
     Array_Init(&terrain->generationQueue, sizeof(Pos), 4);
 }
 
 void TerrainFree(Terrain* terrain)
 {
     MeshArray_Free(&terrain->chunks);
-    Hashmap_Free(&terrain->editDensities);
+    HashmapFree(&terrain->editDensities);
     Array_Free(&terrain->generationQueue);
 }
 
@@ -53,7 +53,7 @@ void TerrainAddDensity(Terrain* terrain, float x, float y, float z, int radius, 
             mesh->y / terrain->chunkSize, 
             mesh->z / terrain->chunkSize
         };
-        Array* editDensities = Hashmap_Get(&terrain->editDensities, &meshPos);
+        Array* editDensities = HashmapGet(&terrain->editDensities, &meshPos);
 
         bool regenerateMesh = false;
 
@@ -122,7 +122,7 @@ void SearchForEmptyChunks(Terrain* terrain, float cameraX, float cameraY, float 
                     int editDensityCapacity = (terrain->chunkSize + 1) * (terrain->chunkSize + 1) * (terrain->chunkSize + 1);
                     Array editDensities;
                     Array_InitCalloc(&editDensities, sizeof(float), editDensityCapacity);
-                    Hashmap_Set(&terrain->editDensities, &pos, &editDensities);
+                    HashmapSet(&terrain->editDensities, &pos, &editDensities);
 
                     // add position to generation queue
                     Array_Push(&terrain->generationQueue, &pos);
@@ -153,11 +153,11 @@ void DeleteDistantChunks(Terrain* terrain, float cameraX, float cameraY, float c
         if (outX || outY || outZ) {
             MeshArray_Delete(&terrain->chunks, i);
 
-            void* found = Hashmap_Get(&terrain->editDensities, &pos);
+            void* found = HashmapGet(&terrain->editDensities, &pos);
             if (found != NULL) {
                 Array* editDensities = (Array*)found;
                 Array_Free(editDensities);
-                Hashmap_Delete(&terrain->editDensities, &pos);
+                HashmapDelete(&terrain->editDensities, &pos);
             }
         }
     }
@@ -169,7 +169,7 @@ void GenerateChunks(Terrain* terrain, GeneratorGPU* generator)
     {
         Pos* pos = (Pos*)Array_Get(&terrain->generationQueue, i);
         Mesh* mesh = MeshArray_KeyGet(&terrain->chunks, pos);
-        void* found = Hashmap_Get(&terrain->editDensities, pos);
+        void* found = HashmapGet(&terrain->editDensities, pos);
         if (mesh != NULL && found != NULL)
         {
             Array* editDensities = (Array*)found;

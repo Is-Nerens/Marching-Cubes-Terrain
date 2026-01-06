@@ -129,7 +129,7 @@ int HashmapContains(Hashmap* hmap, void* key)
     uint32_t hash = HashGeneric(key, hmap->keySize);
     while (probes < hmap->maxProbes) {
         uint32_t i = (hash + probes) % hmap->capacity;
-        if (Hashmap_SlotPresent(hmap, i)) { // Found item
+        if (HashmapSlotPresent(hmap, i)) { // Found item
             
             // Check if key matches
             char* base = (char*)hmap->data + i * (hmap->keySize + hmap->itemSize);
