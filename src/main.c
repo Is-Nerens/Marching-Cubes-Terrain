@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
+#include "timer.h"
 #include "mesh.h"
 #include "shader.h"
 #include "terrain/generator_cpu.h"
@@ -108,7 +109,7 @@ int main()
                     hit.position[0],
                     hit.position[1],
                     hit.position[2],
-                    3, -1.5f * deltaTime
+                    5, -1.5f * deltaTime
                 );
             }
         }

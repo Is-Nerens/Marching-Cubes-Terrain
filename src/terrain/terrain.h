@@ -173,13 +173,15 @@ void GenerateChunks(Terrain* terrain, GeneratorGPU* generator)
         if (mesh != NULL && found != NULL)
         {
             Array* editDensities = (Array*)found;
-            uint64_t start = SDL_GetPerformanceCounter();
-            uint64_t freq = SDL_GetPerformanceFrequency();
-            GeneratorGPUGenerateChunk(generator, editDensities, mesh, pos->x * terrain->chunkSize, pos->y * terrain->chunkSize, pos->z * terrain->chunkSize);
-            uint64_t end = SDL_GetPerformanceCounter();
-            float deltaTime = (float)(end - start) / (float)freq;
+            GeneratorGPUGenerateChunk(
+                generator, 
+                editDensities, 
+                mesh, 
+                pos->x * terrain->chunkSize, 
+                pos->y * terrain->chunkSize, 
+                pos->z * terrain->chunkSize
+            );
         }
     }
-
     Array_Clear(&terrain->generationQueue);
 }

@@ -65,7 +65,6 @@ float Perlin3D(float x, float y, float z)
     float ix1 = Interpolate(n2, n3, sx);
     float ix2 = Interpolate(n4, n5, sx);
     float ix3 = Interpolate(n6, n7, sx);
-
     float iy0 = Interpolate(ix0, ix1, sy);
     float iy1 = Interpolate(ix2, ix3, sy);
 

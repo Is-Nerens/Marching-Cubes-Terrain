@@ -39,6 +39,36 @@ void TerrainRendererFree(TerrainRenderer* renderer)
     TextureFree(&renderer->grassNormal);
 }
 
+bool IsAABBInFrustum(AABB* aabb, mat4 viewProjectionMatrix)
+{
+    vec3 center = {
+        (aabb->minX + aabb->maxX) * 0.5f,
+        (aabb->minY + aabb->maxY) * 0.5f,
+        (aabb->minZ + aabb->maxZ) * 0.5f
+    };
+    
+    vec3 extents = {
+        (aabb->maxX - aabb->minX) * 0.5f,
+        (aabb->maxY - aabb->minY) * 0.5f,
+        (aabb->maxZ - aabb->minZ) * 0.5f
+    };
+    
+    // Transform center to clip space
+    vec4 clipCenter;
+    glm_mat4_mulv3(viewProjectionMatrix, center, 1.0f, clipCenter);
+    float w = clipCenter[3];
+    
+    // Quick reject if center is far outside
+    // Use array indexing instead of .x, .y, .z
+    if (clipCenter[0] + extents[0] < -w || clipCenter[0] - extents[0] > w ||
+        clipCenter[1] + extents[1] < -w || clipCenter[1] - extents[1] > w ||
+        clipCenter[2] + extents[2] < -w || clipCenter[2] - extents[2] > w) {
+        return false;
+    }
+    
+    return true;
+}
+
 void DrawTerrain(TerrainRenderer* renderer, Terrain* terrain, Camera* camera)
 {
     glUseProgram(renderer->shaderProgram);
@@ -63,6 +93,7 @@ void DrawTerrain(TerrainRenderer* renderer, Terrain* terrain, Camera* camera)
     for (int i=0; i<terrain->chunks.size; i++)
     {
         Mesh* mesh = MeshArray_Get(&terrain->chunks, i);
+        if (mesh->indexCount == 0) continue;
 
         // compute mesh matrix
         mat4 identity;
@@ -74,6 +105,11 @@ void DrawTerrain(TerrainRenderer* renderer, Terrain* terrain, Camera* camera)
         // compute mvp
         mat4 mvp;
         glm_mat4_mul(camera->projectionViewMatrix, meshMatrix, mvp);
+
+        // Frustum culling - skip if not visible
+        if (!IsAABBInFrustum(&mesh->aabb, mvp)) {
+            continue;
+        }
 
         // set shader uniforms
         glUniformMatrix4fv(renderer->mvpUniformLocation, 1, GL_FALSE, (const GLfloat*)mvp);

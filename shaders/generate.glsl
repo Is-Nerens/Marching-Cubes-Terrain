@@ -6,8 +6,7 @@ uniform float densityThreshold;
 uniform float chunkX;
 uniform float chunkY;
 uniform float chunkZ;
-uniform int cubes;
-uniform int partitionSubdivisions;
+uniform int cubesPerPartition;
 
 layout(binding = 0) readonly buffer TriTableBuffer {
     int TriTable[];
@@ -52,33 +51,28 @@ vec3 RandomGradient3D(int ix, int iy, int iz)
     uint h = uint(ix)*374761393u + uint(iy)*668265263u + uint(iz)*2147483647u;
     h = (h ^ (h >> 13u)) * 1274126177u;
     h ^= (h >> 16u);
-    float u = float(h & 0xFFFFu) / 65535.0;          // [0,1]
-    float v = float((h >> 16u) & 0xFFFFu) / 65535.0; // [0,1]
-    float theta = u * 2.0 * 3.14159;
-    float z = v * 2.0 - 1.0;     // cos(phi) ∈ [-1,1]
-    float r = sqrt(1.0 - z*z);
-    return vec3(
-        r * cos(theta),
-        r * sin(theta),
-        z
-    );
+    float x = float(h & 0xFFFFu) / 32767.5 - 1.0;
+    float y = float((h >> 16u) & 0xFFFFu) / 32767.5 - 1.0;
+    uint h2 = h * 1664525u + 1013904223u;
+    float z = float(h2 & 0xFFFFu) / 32767.5 - 1.0;
+    vec3 v = vec3(x, y, z);
+    return v * inversesqrt(dot(v, v));
 }
 
 vec2 RandomGradient2D(int ix, int iy)
 {
-    const uint w = 32u;
-    const uint s = w / 2;
-    uint a = uint(ix), b = uint(iy);
-    a *= 3284157443U;
-    b ^= a << s | a >> (w - s);
-    b *= 1911520717U;
-    a ^= b << s | b >> (w - s);
-    a *= 2048419325U;
-    float random = float(a) * (3.14159265 / float(0xFFFFFFFFU)); // in [0, 2*Pi]
-    vec2 v;
-    v.x = sin(random);
-    v.y = cos(random);
-    return v;
+    uint x = uint(ix);
+    uint y = uint(iy);
+    x *= 3284157443u;
+    y ^= (x << 16) | (x >> 16);
+    y *= 1911520717u;
+    x ^= (y << 16) | (y >> 16);
+    x *= 2048419325u;
+    uint bits = x & 0x00FFFFFFu;
+    float angle = float(bits) * (6.28318530718 / 16777216.0);
+    float s = sin(angle);
+    float c = cos(angle);
+    return vec2(s, c);
 }
 
 
@@ -213,29 +207,22 @@ float GetEditDensity(float x, float y, float z)
 
 float GetDensity(float x, float y, float z)
 {
-    float density = 0;
-
-    // Get surface density
     float pointHeight = y + chunkY;
     float surfaceHeight = GetSurfaceHeight(x, z) * 1.5;
-    float surfaceDensity = surfaceHeight - pointHeight;
-    surfaceDensity = clamp(surfaceDensity, -1.0, 1.0);
-
-    // Get cave density
-    float caveDensity = GetCaveDensity(x, y, z) + 0.3f; 
-
-    // Blend between cave density and surface
-    float blendDistance = 6;
+    float surfaceDensity = clamp(surfaceHeight - pointHeight, -1.0, 1.0);
+    
+    float blendDistance = 6.0;
+    float density = surfaceDensity;
+    
+    // Only compute expensive stuff when near surface
     if (pointHeight < surfaceHeight + blendDistance) {
-        float blendTerm = clamp((surfaceHeight + blendDistance - pointHeight) / blendDistance, 0, 1);
+        float caveDensity = GetCaveDensity(x, y, z) + 0.3f;
+        float blendTerm = clamp((surfaceHeight + blendDistance - pointHeight) / blendDistance, 0.0, 1.0);
         density = mix(surfaceDensity, caveDensity, blendTerm);
     }
-    else { density = surfaceDensity; }
-
-    // Get edit density
+    
+    // Only add edit density if it's non-zero (add a flag check if possible)
     float editDensity = GetEditDensity(x, y, z);
-
-    // Return 
     return density + editDensity;
 }
 
@@ -249,7 +236,7 @@ vec3 VertexInterp(vec4 c1, vec4 c2)
 
 vec3 CalculateNormal(vec3 p)
 {
-    float e = 0.01;
+    float e = 0.001;
     float d0 = GetDensity(p.x, p.y, p.z);
     float dx, dy, dz;
     dx = GetDensity(p.x + e, p.y, p.z) - d0;
@@ -297,8 +284,6 @@ void main()
     int threadID = globalPos.x + 
                    globalPos.y * chunkSize + 
                    globalPos.z * chunkSize * chunkSize;
-    int partitions = int(pow(8.0, partitionSubdivisions));
-    int cubesPerPartition = cubes / partitions;
     int partitionIndex = threadID / cubesPerPartition;
 
     vec4 corners[8];
@@ -323,12 +308,15 @@ void main()
     int vertexIndex = threadID * 90;
     while(TriTableGet(cubeIndex, i) != -1)
     {
-        int a0 = cornerIndexAFromEdge[TriTableGet(cubeIndex, i)];
-        int b0 = cornerIndexBFromEdge[TriTableGet(cubeIndex, i)];
-        int a1 = cornerIndexAFromEdge[TriTableGet(cubeIndex, i+1)];
-        int b1 = cornerIndexBFromEdge[TriTableGet(cubeIndex, i+1)];
-        int a2 = cornerIndexAFromEdge[TriTableGet(cubeIndex, i+2)];
-        int b2 = cornerIndexBFromEdge[TriTableGet(cubeIndex, i+2)];
+        int e0 = TriTableGet(cubeIndex, i);
+        int e1 = TriTableGet(cubeIndex, i + 1);
+        int e2 = TriTableGet(cubeIndex, i + 2);
+        int a0 = cornerIndexAFromEdge[e0];
+        int b0 = cornerIndexBFromEdge[e0];
+        int a1 = cornerIndexAFromEdge[e1];
+        int b1 = cornerIndexBFromEdge[e1];
+        int a2 = cornerIndexAFromEdge[e2];
+        int b2 = cornerIndexBFromEdge[e2];
         vec3 v1 = VertexInterp(corners[a0], corners[b0]);
         vec3 v2 = VertexInterp(corners[a1], corners[b1]);
         vec3 v3 = VertexInterp(corners[a2], corners[b2]);
@@ -345,11 +333,5 @@ void main()
         int word = partitionIndex >> 5;
         int bit  = partitionIndex & 31;
         atomicOr(partitionOccupancyFlags[word], 1 << (31 - bit));
-    }
-
-    // set remaining vertices with empty values
-    int cubeVerticesRemainingStart = threadID * 90;
-    for (int j=i*6; j<90; ++j) {
-        vertices[cubeVerticesRemainingStart + j] = -1.0f;
     }
 }
